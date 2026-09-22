@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MediAI — первичный клинический триаж</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <div class="max-w-3xl mx-auto p-8">
+    <h1 class="text-3xl font-bold mb-2">MediAI</h1>
+    <p class="text-slate-600 mb-6">Интеллектуальная платформа первичного клинического триажа. Backend запущен. Фронтенд — в разработке.</p>
+    <div class="grid gap-3 text-sm">
+      <a class="underline text-blue-700" href="/api/health">GET /api/health</a>
+      <a class="underline text-blue-700" href="/api/conditions">GET /api/conditions</a>
+      <code class="bg-slate-900 text-green-300 p-3 rounded">POST /api/triage/initial → 3 вопроса<br/>POST /api/triage/final → triage_level + диета + действия<br/>POST /api/sport/plan → план трансформации</code>
+    </div>
+  </div>
+</body>
+</html>
