@@ -1,6 +1,7 @@
 """Клиническая логика триажа MediAI: вопросы, BMI, риски, диета, действия."""
 from __future__ import annotations
 
+import re
 from typing import Dict, List, Tuple
 
 from .schemas import (
@@ -14,10 +15,10 @@ from .schemas import (
 )
 
 # ---------------------------------------------------------------------------
-# Каталог заболеваний для мега-меню (с кодами МКБ-10)
+# Каталог заболеваний для мега-меню (с кодами МКБ-10), 3 языка
 # ---------------------------------------------------------------------------
 
-CONDITIONS_CATALOG: Dict[str, List[ConditionItem]] = {
+CONDITIONS_CATALOG_RU: Dict[str, List[ConditionItem]] = {
     "кардиология": [
         ConditionItem(name="Стенокардия", icd10="I20", category="кардиология",
                       urgency_hint="Загрудинная давящая боль — исключить ОКС, вызвать 103"),
@@ -74,9 +75,135 @@ CONDITIONS_CATALOG: Dict[str, List[ConditionItem]] = {
     ],
 }
 
+CONDITIONS_CATALOG_EN: Dict[str, List[ConditionItem]] = {
+    "cardiology": [
+        ConditionItem(name="Angina pectoris", icd10="I20", category="cardiology",
+                      urgency_hint="Pressing retrosternal pain — rule out ACS, call emergency"),
+        ConditionItem(name="Acute myocardial infarction", icd10="I21", category="cardiology",
+                      urgency_hint="RED: burning pain >15 min, dyspnea, cold sweat — emergency now"),
+        ConditionItem(name="Essential hypertension", icd10="I10", category="cardiology",
+                      urgency_hint="BP ≥140/90 repeatedly — GP/cardiologist, routine"),
+        ConditionItem(name="Atrial fibrillation", icd10="I48", category="cardiology",
+                      urgency_hint="Palpitations, dyspnea — cardiologist, ECG"),
+    ],
+    "gastroenterology": [
+        ConditionItem(name="Gastroesophageal reflux disease", icd10="K21",
+                      category="gastroenterology", urgency_hint="Heartburn — gastroenterologist"),
+        ConditionItem(name="Gastric ulcer", icd10="K25", category="gastroenterology",
+                      urgency_hint="Hunger/night pain, black stool — see doctor urgently"),
+        ConditionItem(name="Gastritis", icd10="K29", category="gastroenterology",
+                      urgency_hint="Diet No.1/2, gastroenterologist"),
+        ConditionItem(name="Irritable bowel syndrome", icd10="K59",
+                      category="gastroenterology", urgency_hint="Gastroenterologist, FODMAP protocol"),
+        ConditionItem(name="Type 2 diabetes mellitus", icd10="E11",
+                      category="gastroenterology", urgency_hint="Thirst, frequent urination — glucose, endocrinologist"),
+        ConditionItem(name="Obesity", icd10="E66",
+                      category="gastroenterology", urgency_hint="BMI ≥30 — endocrinologist, diet, activity"),
+    ],
+    "neurology": [
+        ConditionItem(name="Migraine", icd10="G43", category="neurology",
+                      urgency_hint="Pulsating unilateral pain with aura — neurologist"),
+        ConditionItem(name="Tension-type headache", icd10="G44.2", category="neurology",
+                      urgency_hint="Pressing bilateral — neurologist/GP"),
+        ConditionItem(name="Stroke (suspected)", icd10="I63/I64", category="neurology",
+                      urgency_hint="RED: FAST — face droop, arm weakness, speech — emergency now"),
+        ConditionItem(name="Dorsopathy / back pain", icd10="M54", category="neurology",
+                      urgency_hint="Neurologist; red flags: saddle numbness, urine retention — emergency"),
+    ],
+    "dermatology": [
+        ConditionItem(name="Atopic dermatitis", icd10="L20", category="dermatology",
+                      urgency_hint="Dermatologist, emollients"),
+        ConditionItem(name="Psoriasis", icd10="L40", category="dermatology",
+                      urgency_hint="Dermatologist, routine"),
+        ConditionItem(name="Cellulitis / erysipelas", icd10="L03", category="dermatology",
+                      urgency_hint="Rapid spread + fever — surgeon/infectious disease, urgent"),
+        ConditionItem(name="Skin abscess", icd10="L02", category="dermatology",
+                      urgency_hint="Abscess, fluctuation — surgeon, do not open at home"),
+    ],
+    "surgery": [
+        ConditionItem(name="Acute appendicitis", icd10="K35", category="surgery",
+                      urgency_hint="RED: pain migration to right iliac fossa + fever — emergency, fasting"),
+        ConditionItem(name="Cholelithiasis / colic", icd10="K80", category="surgery",
+                      urgency_hint="Right upper quadrant pain after fatty food — surgeon, ultrasound"),
+        ConditionItem(name="Inguinal hernia", icd10="K40", category="surgery",
+                      urgency_hint="Bulge, irreducible + pain — emergency (strangulation)"),
+        ConditionItem(name="Intestinal obstruction (suspected)", icd10="K56",
+                      category="surgery", urgency_hint="RED: distension, no stool/gas, vomiting — emergency, fasting"),
+    ],
+}
 
-def get_conditions_catalog() -> Dict[str, List[ConditionItem]]:
-    return CONDITIONS_CATALOG
+CONDITIONS_CATALOG_KZ: Dict[str, List[ConditionItem]] = {
+    "кардиология": [
+        ConditionItem(name="Стенокардия", icd10="I20", category="кардиология",
+                      urgency_hint="Төс артындағы қысатын ауырсыну — ЖҚС жоққа шығару, 103 шақыру"),
+        ConditionItem(name="Жедел миокард инфарктісі", icd10="I21", category="кардиология",
+                      urgency_hint="RED: 15 мин-тан ұзақ күйдіретін ауырсыну, ентігу, суық тер — шұғыл 103"),
+        ConditionItem(name="Эссенциалды гипертензия", icd10="I10", category="кардиология",
+                      urgency_hint="АҚ ≥140/90 қайталанса — терапевт/кардиолог, жоспарлы"),
+        ConditionItem(name="Жүрекше фибрилляциясы", icd10="I48", category="кардиология",
+                      urgency_hint="Ырғақ бұзылысы, ентігу — кардиолог, ЭКГ"),
+    ],
+    "гастроэнтерология": [
+        ConditionItem(name="Гастроэзофагеалды рефлюкс ауруы", icd10="K21",
+                      category="гастроэнтерология", urgency_hint="Қыжыл — гастроэнтеролог"),
+        ConditionItem(name="Асқазан жарасы", icd10="K25", category="гастроэнтерология",
+                      urgency_hint="Аш/түнгі ауырсыну, қара нәжіс — шұғыл дәрігерге"),
+        ConditionItem(name="Гастрит", icd10="K29", category="гастроэнтерология",
+                      urgency_hint="№1/2 диета, гастроэнтеролог"),
+        ConditionItem(name="Тітіркенген ішек синдромы", icd10="K59",
+                      category="гастроэнтерология", urgency_hint="Гастроэнтеролог, FODMAP хаттамасы"),
+        ConditionItem(name="2-типті қант диабеті", icd10="E11",
+                      category="гастроэнтерология", urgency_hint="Шөлдеу, жиі зәр — глюкоза, эндокринолог"),
+        ConditionItem(name="Семіздік", icd10="E66",
+                      category="гастроэнтерология", urgency_hint="ДСИ ≥30 — эндокринолог, диета, белсенділік"),
+    ],
+    "неврология": [
+        ConditionItem(name="Мигрень", icd10="G43", category="неврология",
+                      urgency_hint="Аурасы бар біржақты солқылдаған ауырсыну — невролог"),
+        ConditionItem(name="Кернеулі бас ауруы", icd10="G44.2", category="неврология",
+                      urgency_hint="Қысатын екіжақты — невролог/терапевт"),
+        ConditionItem(name="Инсульт (күдік)", icd10="I63/I64", category="неврология",
+                      urgency_hint="RED: FAST — бет қисаюы, қол әлсіздігі, сөйлеу — шұғыл 103"),
+        ConditionItem(name="Дорсопатия / арқа ауруы", icd10="M54", category="неврология",
+                      urgency_hint="Невролог; қызыл жалаулар: ұйып қалу, зәр іркілісі — 103"),
+    ],
+    "дерматология": [
+        ConditionItem(name="Атопиялық дерматит", icd10="L20", category="дерматология",
+                      urgency_hint="Дерматолог, эмоленттер"),
+        ConditionItem(name="Псориаз", icd10="L40", category="дерматология",
+                      urgency_hint="Дерматолог, жоспарлы"),
+        ConditionItem(name="Целлюлит / рожа", icd10="L03", category="дерматология",
+                      urgency_hint="Жылдам жайылу + қызба — хирург/инфекционист, шұғыл"),
+        ConditionItem(name="Тері абсцессі", icd10="L02", category="дерматология",
+                      urgency_hint="Іріңдік — хирург, үйде ашпау"),
+    ],
+    "хирургия": [
+        ConditionItem(name="Жедел аппендицит", icd10="K35", category="хирургия",
+                      urgency_hint="RED: ауырсынудың оң жаққа ығысуы + қызба — 103, аштық"),
+        ConditionItem(name="Өт тас ауруы / шаншу", icd10="K80", category="хирургия",
+                      urgency_hint="Майдан кейін оң қабырға асты ауырсынуы — хирург, УДЗ"),
+        ConditionItem(name="Шап жарығы", icd10="K40", category="хирургия",
+                      urgency_hint="Томпаю, орнына келмеу + ауырсыну — 103 (қысылу)"),
+        ConditionItem(name="Ішек өтімсіздігі (күдік)", icd10="K56",
+                      category="хирургия", urgency_hint="RED: кебу, нәжіс/газ жоқ, құсу — 103, аштық"),
+    ],
+}
+
+CONDITIONS_CATALOG = CONDITIONS_CATALOG_RU
+
+
+def _norm_lang(lang: str | None) -> str:
+    l = (lang or "ru").lower()
+    return l if l in ("ru", "en", "kz") else "ru"
+
+
+def get_conditions_catalog(lang: str = "ru") -> Dict[str, List[ConditionItem]]:
+    l = _norm_lang(lang)
+    if l == "en":
+        return CONDITIONS_CATALOG_EN
+    if l == "kz":
+        return CONDITIONS_CATALOG_KZ
+    return CONDITIONS_CATALOG_RU
 
 
 # ---------------------------------------------------------------------------
@@ -88,18 +215,48 @@ def calc_bmi(weight_kg: float, height_cm: float) -> float:
     return round(weight_kg / (h_m ** 2), 1)
 
 
-def bmi_category(bmi: float) -> str:
+_BMI_I18N = {
+    "ru": ["Дефицит массы тела", "Норма", "Избыточная масса тела",
+           "Ожирение I степени", "Ожирение II степени", "Ожирение III степени"],
+    "en": ["Underweight", "Normal", "Overweight",
+           "Obesity class I", "Obesity class II", "Obesity class III"],
+    "kz": ["Салмақ тапшылығы", "Қалыпты", "Артық салмақ",
+           "I дәрежелі семіздік", "II дәрежелі семіздік", "III дәрежелі семіздік"],
+}
+
+_BMI_SHORT_I18N = {
+    "ru": ["Дефицит", "Норма", "Избыток", "Ожирение"],
+    "en": ["Low", "Normal", "High", "Obese"],
+    "kz": ["Тапшылық", "Қалыпты", "Артық", "Семіздік"],
+}
+
+
+def bmi_category(bmi: float, lang: str = "ru") -> str:
+    l = _norm_lang(lang)
+    full = _BMI_I18N[l]
     if bmi < 18.5:
-        return "Дефицит массы тела"
+        return full[0]
     if bmi < 25:
-        return "Норма"
+        return full[1]
     if bmi < 30:
-        return "Избыточная масса тела"
+        return full[2]
     if bmi < 35:
-        return "Ожирение I степени"
+        return full[3]
     if bmi < 40:
-        return "Ожирение II степени"
-    return "Ожирение III степени"
+        return full[4]
+    return full[5]
+
+
+def bmi_category_short(bmi: float, lang: str = "ru") -> str:
+    l = _norm_lang(lang)
+    s = _BMI_SHORT_I18N[l]
+    if bmi < 18.5:
+        return s[0]
+    if bmi < 25:
+        return s[1]
+    if bmi < 30:
+        return s[2]
+    return s[3]
 
 
 def _text(req: TriageInitialRequest | TriageFinalRequest) -> str:
@@ -143,10 +300,10 @@ def triage_level_from_score(score: float) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Первичный скрининг: ровно 3 уточняющих вопроса
+# Первичный скрининг: ровно 3 уточняющих вопроса (RU/EN/KZ)
 # ---------------------------------------------------------------------------
 
-_QUESTION_BANK: Dict[str, List[Tuple[str, str, str]]] = {
+_QUESTION_BANK_RU: Dict[str, List[Tuple[str, str, str]]] = {
     "chest": [
         ("chest_pressing", "Боль за грудиной давящая, сжимающая или жгучая, длится более 5–15 минут?",
          "Исключение острого коронарного синдрома (I20–I21)"),
@@ -197,22 +354,135 @@ _QUESTION_BANK: Dict[str, List[Tuple[str, str, str]]] = {
     ],
 }
 
+_QUESTION_BANK_EN: Dict[str, List[Tuple[str, str, str]]] = {
+    "chest": [
+        ("chest_pressing", "Is the chest pain pressing, squeezing or burning and lasting more than 5–15 minutes?",
+         "Rule out acute coronary syndrome (I20–I21)"),
+        ("chest_breath", "Is there shortness of breath, cold sweat, nausea or fear of death with the pain?",
+         "Screening for infarction / PE / pneumothorax"),
+        ("chest_radiation", "Does the pain radiate to the left arm, shoulder, neck, jaw or back?",
+         "Radiation is a typical sign of cardiac pain"),
+    ],
+    "abdomen": [
+        ("abd_migration", "Has the pain moved to the lower right abdomen and worsens when walking/coughing?",
+         "Rule out acute appendicitis (K35)"),
+        ("abd_fever_vomit", "Is there fever ≥37.5°C, nausea or vomiting?",
+         "Systemic signs of acute surgical pathology"),
+        ("abd_tension", "Has the abdomen become hard, sharply painful, with bloating or no stool/gas?",
+         "Rule out peritonitis / obstruction (K56)"),
+    ],
+    "head": [
+        ("neuro_fast", "SUDDENLY: face droop, one-sided arm/leg weakness or numbness, speech problems?",
+         "FAST stroke screening (I63/I64)"),
+        ("neuro_thunder", "Did the pain start suddenly like a “thunderclap” — worst in life, with vomiting or fainting?",
+         "Rule out subarachnoid hemorrhage / hypertensive crisis"),
+        ("neuro_fever_neck", "Is there high fever, neck stiffness, rash?",
+         "Rule out meningitis/encephalitis"),
+    ],
+    "skin": [
+        ("skin_spread", "Is redness/swelling spreading fast (within hours), with increasing pain?",
+         "Rule out cellulitis/erysipelas (L03) — sepsis risk"),
+        ("skin_fever_pus", "Is there fever ≥38°C, pus, blisters, black crust or severe tenderness?",
+         "Signs of bacterial infection / abscess (L02)"),
+        ("skin_breath_allergy", "Is there lip/tongue swelling, breathing difficulty, whole-body rash after drug/food/bite?",
+         "Rule out anaphylaxis — RED state"),
+    ],
+    "limb": [
+        ("limb_trauma", "Was there trauma/fall, cracking sound, can you bear weight on the limb?",
+         "Rule out fracture/dislocation"),
+        ("limb_neuro", "Is there numbness, tingling, foot/hand weakness, urination problems or saddle numbness?",
+         "Red flags of nerve root compression"),
+        ("limb_swelling", "Is there sudden one-sided calf swelling, redness and calf pain, dyspnea or chest pain?",
+         "Rule out deep vein thrombosis / PE"),
+    ],
+    "general": [
+        ("gen_red_acute", "RIGHT NOW: severe chest pain, choking, fainting, seizures, coffee-ground vomit or black stool?",
+         "Universal life-threat screening"),
+        ("gen_fever", "Is there fever ≥38.5°C, chills, confusion or severe weakness?",
+         "Sepsis/severe infection screening"),
+        ("gen_dynamic", "Have symptoms sharply worsened in recent hours, with new severe pain or numbness?",
+         "Dynamics assessment — ORANGE/RED marker"),
+    ],
+}
+
+_QUESTION_BANK_KZ: Dict[str, List[Tuple[str, str, str]]] = {
+    "chest": [
+        ("chest_pressing", "Төс артындағы ауырсыну қысатын, жаншитын немесе күйдіретін, 5–15 минуттан ұзақ па?",
+         "Жедел коронарлық синдромды жоққа шығару (I20–I21)"),
+        ("chest_breath", "Ентігу, ауа жетіспеуі, суық тер, жүрек айну немесе өлім үрейі бар ма?",
+         "Инфаркт / ТЭЛА / пневмоторакс скринингі"),
+        ("chest_radiation", "Ауырсыну сол қолға, иыққа, мойынға, жаққа немесе арқаға беріле ме?",
+         "Иррадиация — жүрек ауырсынуының типтік белгісі"),
+    ],
+    "abdomen": [
+        ("abd_migration", "Ауырсыну оң жақ төменгі ішке ығысып, жүргенде/жөтелгенде күшейе ме?",
+         "Жедел аппендицитті жоққа шығару (K35)"),
+        ("abd_fever_vomit", "Температура ≥37.5°C, жүрек айну немесе құсу бар ма?",
+         "Жедел хирургиялық патологияның жүйелі белгілері"),
+        ("abd_tension", "Іш қатайып, басқанда қатты ауырып, кебу және нәжіс/газ іркілісі бар ма?",
+         "Перитонит / өтімсіздікті жоққа шығару (K56)"),
+    ],
+    "head": [
+        ("neuro_fast", "КЕНЕТТЕН: бет қисаюы, біржақты қол/аяқ әлсіздігі немесе ұюы, сөйлеу бұзылысы бар ма?",
+         "FAST инсульт скринингі (I63/I64)"),
+        ("neuro_thunder", "Ауырсыну кенеттен «найзағай соққысындай» — өмірдегі ең қатты, құсу немесе естен танумен басталды ма?",
+         "Субарахноидалды қан кету / гипертон кризін жоққа шығару"),
+        ("neuro_fever_neck", "Жоғары температура, шүйде сіресуі, бөртпе бар ма?",
+         "Менингит/энцефалитті жоққа шығару"),
+    ],
+    "skin": [
+        ("skin_spread", "Қызару/ісіну жылдам жайылып жатыр ма (сағаттар ішінде), ауырсыну күшейе ме?",
+         "Целлюлит/рожаны жоққа шығару (L03) — сепсис қаупі"),
+        ("skin_fever_pus", "Қызба ≥38°C, ірің, көпіршік, қара қабыршақ немесе қатты ауырсыну бар ма?",
+         "Бактериялық инфекция / абсцесс белгілері (L02)"),
+        ("skin_breath_allergy", "Ерін/тіл ісінуі, тыныс тарылуы, дәрі/тағам/шағудан кейін бүкіл денеде бөртпе бар ма?",
+         "Анафилаксияны жоққа шығару — RED жағдай"),
+    ],
+    "limb": [
+        ("limb_trauma", "Жарақат/құлау болды ма, сытыр естілді ме, аяқ-қолға сүйене аласыз ба?",
+         "Сынық/шығуды жоққа шығару"),
+        ("limb_neuro", "Ұю, шаншу, табан/білек әлсіздігі, зәр шығару мәселесі бар ма?",
+         "Жүйке түбірі қысылуының қызыл жалаулары"),
+        ("limb_swelling", "Балтырдың кенеттен біржақты ісінуі, қызаруы және ауырсынуы, ентігу бар ма?",
+         "Терең вена тромбозын / ТЭЛА жоққа шығару"),
+    ],
+    "general": [
+        ("gen_red_acute", "ҚАЗІР: кеудеде қатты ауырсыну, тұншығу, естен тану, құрысу, «кофе тұнбасы» құсу немесе қара нәжіс бар ма?",
+         "Өмірге қауіпті жағдайлардың әмбебап скринингі"),
+        ("gen_fever", "Температура ≥38.5°C, қалтырау, сана бұзылысы немесе қатты әлсіздік бар ма?",
+         "Сепсис/ауыр инфекция скринингі"),
+        ("gen_dynamic", "Соңғы сағаттарда симптомдар күрт күшейіп, жаңа қатты ауырсыну немесе ұю пайда болды ма?",
+         "Динамиканы бағалау — ORANGE/RED маркері"),
+    ],
+}
+
+_QUESTION_BANK = _QUESTION_BANK_RU
+
+_OPTIONS_I18N = {
+    "ru": ["Да", "Нет", "Не уверен(а)"],
+    "en": ["Yes", "No", "Not sure"],
+    "kz": ["Иә", "Жоқ", "Сенімді емеспін"],
+}
+
 
 def generate_initial_questions(req: TriageInitialRequest) -> List[TriageQuestion]:
-    """Вернуть ровно 3 клинических уточняющих вопроса."""
+    """Вернуть ровно 3 клинических уточняющих вопроса на языке req.lang."""
+    lang = _norm_lang(getattr(req, "lang", "ru"))
     zone = normalize_zone(req.body_zone)
     # Эвристика: если текст явно указывает на другую зону — корректируем.
     t = _text(req)
-    if any(k in t for k in ["аппендицит", "справа внизу живота", "подвздош"]) and zone != "abdomen":
+    if any(k in t for k in ["аппендицит", "справа внизу живота", "подвздош", "appendicitis", "right lower", "аппендицит"]) and zone != "abdomen":
         zone = "abdomen"
-    if any(k in t for k in ["грудин", "за грудиной", "отдаёт в руку", "жмет в груди"]) and zone != "chest":
+    if any(k in t for k in ["грудин", "за грудиной", "отдаёт в руку", "жмет в груди", "chest pain", "pressing"]) and zone != "chest":
         zone = "chest"
-    if any(k in t for k in ["перекос лица", "онемела рука", "нарушение речи", "инсульт"]) and zone != "head":
+    if any(k in t for k in ["перекос лица", "онемела рука", "нарушение речи", "инсульт", "face droop", "stroke", "бет қисаюы"]) and zone != "head":
         zone = "head"
 
-    bank = _QUESTION_BANK.get(zone, _QUESTION_BANK["general"])
+    bank_map = {"ru": _QUESTION_BANK_RU, "en": _QUESTION_BANK_EN, "kz": _QUESTION_BANK_KZ}
+    bank = bank_map[lang].get(zone, bank_map[lang]["general"])
+    options = _OPTIONS_I18N[lang]
     return [
-        TriageQuestion(id=qid, text=text, reason=reason)
+        TriageQuestion(id=qid, text=text, reason=reason, options=list(options))
         for (qid, text, reason) in bank[:3]
     ]
 
@@ -226,33 +496,72 @@ _RED_PHRASES = ["да", "yes", "есть", "сильная", "резко", "вн
 
 def _answer_is_positive(answer: str) -> bool:
     a = (answer or "").strip().lower()
-    if a in ("да", "yes", "есть", "имеется", "наблюдается"):
+    if a in ("да", "yes", "есть", "имеется", "наблюдается", "иә", "бар", "болады"):
         return True
     # «да, ...» тоже считаем положительным
-    if a.startswith("да") or a.startswith("yes"):
+    if a.startswith("да") or a.startswith("yes") or a.startswith("иә"):
         return True
     return False
+
+
+def _normalize_med_text(s: str) -> str:
+    """Normalized lowercase text for word-boundary matching (Unicode-aware)."""
+    return (s or "").lower().replace("ё", "е")
+
+
+def _kw_pattern(kw: str) -> str:
+    k = _normalize_med_text(kw)
+    if k == "39":
+        return r"\b39\b"
+    if k == "38.5":
+        return r"\b38[.,]5\b"
+    if k == "температура 39":
+        return r"\bтемпература\s*:?\s*39\b"
+    if k == "температура 40":
+        return r"\bтемпература\s*:?\s*40\b"
+    if k == "fast":
+        return r"\bfast\b"
+    if k == "faint":
+        # keep sensitivity to faint/fainting/faainted with word-start boundary
+        return r"\bfaint\w*\b"
+    if k == "fever":
+        return r"\bfever\w*\b"
+    if k == "анафилакси":
+        # stem of анафилаксия/анафилактический — allow suffix, require word start
+        return r"\bанафилакси\w*\b"
+    return r"\b" + re.escape(k) + r"\b"
+
+
+def _kw_hit(kw: str, text_norm: str) -> bool:
+    try:
+        return re.search(_kw_pattern(kw), text_norm, flags=re.UNICODE) is not None
+    except re.error:
+        return _normalize_med_text(kw) in text_norm
 
 
 def _keyword_score(t: str) -> Tuple[float, List[str]]:
     """Эвристический скоринг по свободному тексту. Возвращает (баллы, флаги)."""
     score = 0.0
     flags: List[str] = []
+    tn = _normalize_med_text(t)
     red_groups = [
-        (["боль за грудиной", "давит в груди", "жжет в груди", "отдаёт в руку", "холодный пот", "удушье", "нехватка воздуха"], 38, "кардиальный красный флаг"),
-        (["перекос лица", "онемела рука", "нарушение речи", "инсульт", "fast"], 42, "неврологический красный флаг (FAST)"),
-        (["рвота кофейной", "черный стул", "мелена", "кровь в стуле", "кровотечение"], 40, "кровотечение ЖКТ"),
-        (["острая боль справа внизу", "миграция боли", "твёрдый живот", "твердый живот", "доскообразный", "нет стула и газов", "задержка стула"], 36, "острая хирургическая патология"),
-        (["анафилакси", "отёк губ", "отек губ", "отёк языка", "задыхаюсь"], 45, "анафилаксия"),
-        (["температура 39", "температура 40", "38.5", "39", "озноб", "спутанность", "потеря сознания", "обморок", "судороги"], 25, "системная тяжесть"),
-        (["тошнота", "рвота", "лихорадка", "температура"], 10, "системные симптомы"),
+        (["боль за грудиной", "давит в груди", "жжет в груди", "отдаёт в руку", "холодный пот", "удушье", "нехватка воздуха",
+          "chest pain", "pressing chest", "cold sweat", "shortness of breath", "төс артындағы ауырсыну", "суық тер", "ентігу"], 38, "кардиальный красный флаг"),
+        (["перекос лица", "онемела рука", "нарушение речи", "инсульт", "fast", "face droop", "arm weakness", "stroke", "бет қисаюы"], 42, "неврологический красный флаг (FAST)"),
+        (["рвота кофейной", "черный стул", "мелена", "кровь в стуле", "кровотечение", "coffee-ground", "black stool", "bleeding", "қара нәжіс"], 40, "кровотечение ЖКТ"),
+        (["острая боль справа внизу", "миграция боли", "твёрдый живот", "твердый живот", "доскообразный", "нет стула и газов", "задержка стула",
+          "right lower", "migrating pain", "rigid abdomen", "оң жақ", "қатайған іш"], 36, "острая хирургическая патология"),
+        (["анафилакси", "отёк губ", "отек губ", "отёк языка", "задыхаюсь", "anaphylaxis", "lip swelling", "анафилаксия"], 45, "анафилаксия"),
+        (["температура 39", "температура 40", "38.5", "39", "озноб", "спутанность", "потеря сознания", "обморок", "судороги",
+          "fever", "chills", "confusion", "faint", "қызба", "қалтырау"], 25, "системная тяжесть"),
+        (["тошнота", "рвота", "лихорадка", "температура", "nausea", "vomiting", "жүрек айну", "құсу"], 10, "системные симптомы"),
     ]
     for keywords, pts, flag in red_groups:
-        if any(k in t for k in keywords):
+        if any(_kw_hit(k, tn) for k in keywords):
             score += pts
             flags.append(flag)
     # Возраст и хронические маркеры
-    if any(k in t for k in ["диабет", "давление", "гипертония", "астма", "ибс", "инфаркт в прошлом"]):
+    if any(_kw_hit(k, tn) for k in ["диабет", "давление", "гипертония", "астма", "ибс", "инфаркт в прошлом", "diabetes", "hypertension", "asthma", "қант диабеті"]):
         score += 6
         flags.append("отягощённый анамнез")
     return score, flags
@@ -260,9 +569,10 @@ def _keyword_score(t: str) -> Tuple[float, List[str]]:
 
 def evaluate_final(req: TriageFinalRequest) -> dict:
     t = _text(req)
+    lang = _norm_lang(getattr(req, "lang", "ru"))
     zone = normalize_zone(req.body_zone)
     bmi = calc_bmi(req.weight_kg, req.height_cm)
-    bmi_cat = bmi_category(bmi)
+    bmi_cat = bmi_category(bmi, lang)
 
     # --- базовый скоринг ---
     score = 0.0
@@ -296,16 +606,16 @@ def evaluate_final(req: TriageFinalRequest) -> dict:
         score += 3
 
     # Неопределённость («не уверен») — небольшой плюс к осторожности
-    unsure = sum(1 for a in req.answers if "не уверен" in (a.answer or "").lower() or "не знаю" in (a.answer or "").lower())
+    unsure = sum(1 for a in req.answers if any(k in (a.answer or "").lower() for k in ["не уверен", "не знаю", "not sure", "сенімді емес"]))
     score += unsure * 4
 
     score = max(0.0, min(100.0, round(score, 1)))
     level = triage_level_from_score(score)
 
-    probable = _build_probable_conditions(zone, t, req, positives, bmi)
-    diet = _build_diet(zone, t, probable, req.request_diet, bmi)
-    actions, see_doctor, emergency_call, forbidden = _build_actions(level, zone, probable, t)
-    evidence = _build_evidence(zone, probable)
+    probable = _build_probable_conditions(zone, t, req, positives, bmi, lang)
+    diet = _build_diet(zone, t, probable, req.request_diet, bmi, lang)
+    actions, see_doctor, emergency_call, forbidden = _build_actions(level, zone, probable, t, lang)
+    evidence = _build_evidence(zone, probable, lang)
 
     return {
         "bmi": bmi,
@@ -324,8 +634,9 @@ def evaluate_final(req: TriageFinalRequest) -> dict:
 
 
 def _build_probable_conditions(
-    zone: str, t: str, req: TriageFinalRequest, positives: int, bmi: float
+    zone: str, t: str, req: TriageFinalRequest, positives: int, bmi: float, lang: str = "ru"
 ) -> List[ProbableCondition]:
+    l = _norm_lang(lang)
     cands: List[ProbableCondition] = []
 
     def add(name: str, icd10: str, prob: float, reason: str) -> None:
@@ -334,6 +645,92 @@ def _build_probable_conditions(
             probability=float(max(5.0, min(95.0, round(prob, 1)))),
             reason=reason,
         ))
+
+    if l == "en":
+        if zone == "chest":
+            base = 20 + positives * 15
+            add("Acute coronary syndrome (angina / infarction)", "I20–I21", base + 15,
+                "Retrosternal pain ± radiation/dyspnea — rule out ACS")
+            add("Essential hypertension", "I10", 30 + positives * 5, "Associated cardiac symptoms")
+            add("GERD (cardiac mimic)", "K21", 25, "Retrosternal burning may mimic cardiac pain")
+        elif zone == "abdomen":
+            surg_hint = any(k in t for k in ["справа внизу", "миграция", "подвздош", "аппендицит", "твёрдый", "твердый", "right lower", "migrat", "rigid"])
+            base = 20 + positives * 14
+            if surg_hint or positives >= 2:
+                add("Acute appendicitis (suspected)", "K35", base + 15, "Right-sided migration + fever/nausea")
+                add("Cholelithiasis / colic", "K80", base, "Abdominal pain linked to fatty food")
+            else:
+                add("Acute gastritis", "K29", base + 10, "Epigastric pain/discomfort")
+                add("Gastric ulcer", "K25", base, "Hunger/night pain — rule out complication")
+            add("Irritable bowel syndrome", "K59", 25, "Functional differential diagnosis")
+            if bmi >= 30 or "диабет" in t or "diabetes" in t or "жажда" in t:
+                add("Type 2 diabetes (screening)", "E11", 30, "Obesity/thirst — check glucose")
+        elif zone == "head":
+            fast_hint = any(k in t for k in ["перекос", "онемела", "речь", "инсульт", "face droop", "stroke"])
+            if fast_hint or positives >= 1:
+                add("Suspected stroke (TIA/ischemic)", "I63/I64", 35 + positives * 15, "FAST signs — emergency care")
+            add("Migraine", "G43", 40 if not fast_hint else 25, "Pulsating unilateral pain ± aura")
+            add("Tension-type headache", "G44.2", 35, "Pressing bilateral pain")
+        elif zone == "skin":
+            add("Cellulitis / erysipelas (if spreading fast)", "L03", 30 + positives * 12, "Rapid spread + pain/fever")
+            add("Skin abscess", "L02", 30 + positives * 8, "Pus/fluctuation — surgeon exam")
+            add("Atopic dermatitis", "L20", 28, "Itch/chronic course — dermatologist")
+        elif zone == "limb":
+            add("Dorsopathy with radicular syndrome", "M54", 35 + positives * 8, "Back/limb pain ± numbness")
+            add("Limb injury (bruise/strain)", "S80–S89", 30, "Linked to load/trauma")
+            add("Deep vein thrombosis (rule out if one-sided edema)", "I80", 20 + positives * 10, "One-sided calf edema + calf pain")
+        else:
+            add("Requires in-person differentiation", "R69", 30 + positives * 10, "Nonspecific symptoms — GP exam")
+            if "температура" in t or "fever" in t or "қызба" in t:
+                add("Acute respiratory infection", "J06", 35, "Fever + catarrhal symptoms")
+            if bmi >= 30:
+                add("Obesity", "E66", 40, f"BMI {bmi}")
+        cands.sort(key=lambda c: c.probability, reverse=True)
+        return cands[:3]
+
+    if l == "kz":
+        if zone == "chest":
+            base = 20 + positives * 15
+            add("Жедел коронарлық синдром (стенокардия / инфаркт)", "I20–I21", base + 15,
+                "Төс артындағы ауырсыну ± иррадиация/ентігу — ЖҚС жоққа шығару")
+            add("Эссенциалды гипертензия", "I10", 30 + positives * 5, "Ілеспе жүрек симптомдары")
+            add("ГЭРА (жүрек ауырсынуына ұқсас)", "K21", 25, "Төс артындағы ашу жүрек ауырсынуына ұқсауы мүмкін")
+        elif zone == "abdomen":
+            surg_hint = any(k in t for k in ["справа внизу", "миграция", "подвздош", "аппендицит", "твёрдый", "твердый", "оң жақ"])
+            base = 20 + positives * 14
+            if surg_hint or positives >= 2:
+                add("Жедел аппендицит (күдік)", "K35", base + 15, "Ауырсынудың оңға ығысуы + қызба/жүрек айну")
+                add("Өт тас ауруы / шаншу", "K80", base, "Іш ауырсынуы, майлы тағаммен байланыс")
+            else:
+                add("Жедел гастрит", "K29", base + 10, "Эпигастрийде ауырсыну/жайсыздық")
+                add("Асқазан жарасы", "K25", base, "Аш/түнгі ауырсыну — асқынуды жоққа шығару")
+            add("Тітіркенген ішек синдромы", "K59", 25, "Функционалды ажыратпа диагноз")
+            if bmi >= 30 or "диабет" in t or "қант" in t or "шөлдеу" in t:
+                add("2-типті қант диабеті (скрининг)", "E11", 30, "Семіздік/шөлдеу — глюкозаны тексеру")
+        elif zone == "head":
+            fast_hint = any(k in t for k in ["перекос", "онемела", "речь", "инсульт", "бет қисаюы"])
+            if fast_hint or positives >= 1:
+                add("Инсульт күдігі (ТИА/ишемиялық)", "I63/I64", 35 + positives * 15, "FAST белгілері — шұғыл көмек")
+            add("Мигрень", "G43", 40 if not fast_hint else 25, "Аурасы бар біржақты солқылдаған ауырсыну")
+            add("Кернеулі бас ауруы", "G44.2", 35, "Қысатын екіжақты ауырсыну")
+        elif zone == "skin":
+            add("Целлюлит / рожа (жылдам жайылса)", "L03", 30 + positives * 12, "Жылдам жайылу + ауырсыну/қызба")
+            add("Тері абсцессі", "L02", 30 + positives * 8, "Ірің — хирург қарауы")
+            add("Атопиялық дерматит", "L20", 28, "Қышыну/созылмалы ағым — дерматолог")
+        elif zone == "limb":
+            add("Түбірлік синдромы бар дорсопатия", "M54", 35 + positives * 8, "Арқа/аяқ-қол ауырсынуы ± ұю")
+            add("Аяқ-қол жарақаты (соғылу/созылу)", "S80–S89", 30, "Жүктеме/жарақатпен байланыс")
+            add("Терең вена тромбозы (біржақты ісікте жоққа шығару)", "I80", 20 + positives * 10, "Балтырдың біржақты ісінуі + ауырсыну")
+        else:
+            add("Күндізгі саралау қажет", "R69", 30 + positives * 10, "Бейспецификалық симптомдар — терапевт қарауы")
+            if "температура" in t or "қызба" in t:
+                add("Жедел респираторлық инфекция", "J06", 35, "Қызба + катаралды симптомдар")
+            if bmi >= 30:
+                add("Семіздік", "E66", 40, f"ДСИ {bmi}")
+        cands.sort(key=lambda c: c.probability, reverse=True)
+        return cands[:3]
+
+    # ru (default, исходная логика)
 
     if zone == "chest":
         base = 20 + positives * 15
@@ -384,15 +781,27 @@ def _build_probable_conditions(
     return cands[:3]
 
 
+_GI_BLEED_SIGNALS = [
+    "мелена", "черный стул", "рвота кофейной", "кровотечение",
+    "bleeding", "black stool", "coffee-ground", "қара нәжіс",
+    "кровь в стуле",
+]
+
+_ABDOMEN_SURGICAL_SIGNALS = [
+    "аппендицит", "справа внизу", "подвздош", "твёрдый живот",
+    "твердый живот", "нет стула", "непроходимость", "доскообразный",
+]
+
+
 def _surgery_suspected(zone: str, t: str, probable: List[ProbableCondition]) -> bool:
-    icds = " ".join(p.icd10 for p in probable)
-    if zone == "abdomen" and any(k in t for k in
-                                 ["аппендицит", "справа внизу", "подвздош", "твёрдый живот",
-                                  "твердый живот", "нет стула", "непроходимость", "досkoобразный".replace("k", "к")]):
+    tn = _normalize_med_text(t)
+    if zone == "abdomen" and any(_kw_hit(k, tn) for k in _ABDOMEN_SURGICAL_SIGNALS):
         return True
+    icds = " ".join(p.icd10 for p in probable)
     if "K35" in icds or "K56" in icds:
         return True
-    if any(k in t for k in ["рвота кофейной", "черный стул", "мелена"]):
+    # GI-bleed in ANY zone → strict fasting (zone-independent).
+    if any(_kw_hit(k, tn) for k in _GI_BLEED_SIGNALS):
         return True
     return False
 
@@ -410,10 +819,27 @@ def _gi_diabetes_obesity_context(t: str, probable: List[ProbableCondition], bmi:
 
 
 def _build_diet(
-    zone: str, t: str, probable: List[ProbableCondition], requested: bool, bmi: float
+    zone: str, t: str, probable: List[ProbableCondition], requested: bool, bmi: float, lang: str = "ru"
 ) -> DietInfo:
+    l = _norm_lang(lang)
     # Жёсткий запрет при подозрении на хирургию / кровотечение
     if _surgery_suspected(zone, t, probable):
+        if l == "en":
+            return DietInfo(
+                allowed=False,
+                regime="STRICT FASTING: eat and drink nothing until surgeon exam",
+                reason="Suspected acute surgical pathology (appendicitis/obstruction/bleeding). Food and water raise peritonitis and aspiration risk.",
+                forbidden=["Any food", "Water and drinks", "Laxatives and painkillers without prescription", "Heating pad on abdomen"],
+                warning="DO NOT EAT or DRINK. Do not take analgesics — they mask the picture. Call emergency.",
+            )
+        if l == "kz":
+            return DietInfo(
+                allowed=False,
+                regime="ҚАТАҢ АШТЫҚ: хирург қарауына дейін ештеңе жеуге және ішуге болмайды",
+                reason="Жедел хирургиялық патология күдігі (аппендицит/өтімсіздік/қан кету). Тағам мен су перитонит және аспирация қаупін арттырады.",
+                forbidden=["Кез келген тағам", "Су және сусындар", "Тағайындаусыз іш жүргізетін және ауырсынуды басатын дәрілер", "Ішке жылытқыш"],
+                warning="ЖЕМЕҢІЗ және ІШПЕҢІЗ. Ауырсынуды басатын дәрі ішпеңіз — көріністі бұзады. 103 шақырыңыз.",
+            )
         return DietInfo(
             allowed=False,
             regime="СТРОГИЙ ГОЛОД: ничего не есть и не пить до осмотра хирурга",
@@ -423,8 +849,34 @@ def _build_diet(
         )
 
     if _gi_diabetes_obesity_context(t, probable, bmi) or requested:
-        diabetes = any("E11" in p.icd10 for p in probable) or "диабет" in t
+        diabetes = any("E11" in p.icd10 for p in probable) or "диабет" in t or "diabetes" in t or "қант" in t
         if diabetes:
+            if l == "en":
+                return DietInfo(
+                    allowed=True,
+                    regime="Table No.9 (glycemic control): 3 main meals + 1–2 snacks, no sugar",
+                    reason="Suspected glycemia/diabetes or direct request. Confirm with blood glucose.",
+                    recommended=["Vegetables 400–500 g/day", "Whole grains instead of white bread",
+                                 "Lean protein: chicken, fish, legumes", "Sugar-free dairy", "Water instead of juices/soda"],
+                    forbidden=["Sugar, honey, sweets", "White bread and pastries", "Sweet drinks and juices", "Alcohol", "Fast food and trans fats"],
+                    menu_example=["Breakfast: oatmeal + egg + vegetables",
+                                  "Lunch: vegetable soup + chicken/fish + buckwheat",
+                                  "Snack: sugar-free yogurt + nuts 20–30 g",
+                                  "Dinner: fish + steamed vegetables"],
+                )
+            if l == "kz":
+                return DietInfo(
+                    allowed=True,
+                    regime="№9 үстел (гликемияны бақылау): 3 негізгі ас + 1–2 тіскебасар, қантсыз",
+                    reason="Гликемия/диабет күдігі немесе тікелей сұраныс. Қан глюкозасымен растау қажет.",
+                    recommended=["Көкөніс 400–500 г/тәул", "Ақ нан орнына дәнді дақылдар",
+                                 "Майсыз ақуыз: тауық, балық, бұршақ", "Қантсыз сүт өнімдері", "Шырын/газды су орнына су"],
+                    forbidden=["Қант, бал, тәттілер", "Ақ нан және бәліш", "Тәтті сусындар мен шырындар", "Алкоголь", "Фастфуд және трансмайлар"],
+                    menu_example=["Таңғы ас: сұлы ботқасы + жұмыртқа + көкөніс",
+                                  "Түскі ас: көкөніс сорпасы + тауық/балық + қарақұмық",
+                                  "Тіскебасар: қантсыз йогурт + жаңғақ 20–30 г",
+                                  "Кешкі ас: балық + буға піскен көкөніс"],
+                )
             return DietInfo(
                 allowed=True,
                 regime="Стол №9 (щадящий, контроль гликемии): 3 основных приёма + 1–2 перекуса, без сахара",
@@ -436,6 +888,32 @@ def _build_diet(
                               "Обед: суп овощной + курица/рыба + гречка",
                               "Перекус: йогурт без сахара + орехи 20–30 г",
                               "Ужин: рыба + овощи на пару"],
+            )
+        if l == "en":
+            return DietInfo(
+                allowed=True,
+                regime="Gentle diet (tables No.1/2/4 as tolerated): 4–5 small warm meals",
+                reason="GI symptoms or abnormal BMI / direct user request.",
+                recommended=["Porridge with water (rice, oatmeal)", "Pureed soups", "Boiled/steamed lean meat and fish",
+                             "Baked vegetables", "Water 1.5–2 L/day (unless restricted)"],
+                forbidden=["Fatty, fried, smoked", "Spicy and marinades", "Alcohol", "Coffee on empty stomach", "Fresh pastries, legumes if bloated"],
+                menu_example=["Breakfast: rice porridge + banana",
+                              "Lunch: zucchini puree soup + turkey + potato",
+                              "Snack: baked apple",
+                              "Dinner: steamed fish + carrot/zucchini"],
+            )
+        if l == "kz":
+            return DietInfo(
+                allowed=True,
+                regime="Жұмсақ диета (№1/2/4 үстелдер типі): күніне 4–5 рет жылы жұмсақ тағам",
+                reason="Гастроэнтерологиялық симптомдар немесе ДСИ нормадан тыс / тікелей сұраныс.",
+                recommended=["Судағы ботқалар (күріш, сұлы)", "Езбе сорпалар", "Қайнатылған/буға піскен майсыз ет пен балық",
+                             "Пештегі көкөністер", "Су 1.5–2 л/тәул (шектеу болмаса)"],
+                forbidden=["Майlı, қуырылған, ысталған", "Ащы және маринадтар", "Алкоголь", "Ашқарынға кофе", "Жаңа бәліш, кепкенде бұршақ"],
+                menu_example=["Таңғы ас: күріш ботқасы + банан",
+                              "Түскі ас: кәді езбе сорпасы + күркетауық + картоп",
+                              "Тіскебасар: пештегі алма",
+                              "Кешкі ас: буға піскен балық + сәбіз/кәді"],
             )
         return DietInfo(
             allowed=True,
@@ -450,6 +928,22 @@ def _build_diet(
                           "Ужин: рыба на пару + морковь/кабачок"],
         )
 
+    if l == "en":
+        return DietInfo(
+            allowed=False,
+            regime="No special therapeutic diet indicated",
+            reason="No GI/metabolic indications and no direct diet request. Regular balanced nutrition is enough.",
+            recommended=["Vegetables and fruits daily", "Enough protein", "Water as desired"],
+            forbidden=[],
+        )
+    if l == "kz":
+        return DietInfo(
+            allowed=False,
+            regime="Арнайы емдік диета көрсетілмеген",
+            reason="Гастроэнтерологиялық/метаболикалық көрсеткіштер жоқ және диетаға тікелей сұраныс болмады. Кәдімгі теңгерімді тамақтану жеткілікті.",
+            recommended=["Күнде көкөніс пен жеміс", "Жеткілікті ақуыз", "Шөлге қарай су"],
+            forbidden=[],
+        )
     return DietInfo(
         allowed=False,
         regime="Специальная лечебная диета не показана",
@@ -460,21 +954,122 @@ def _build_diet(
 
 
 def _build_actions(
-    level: str, zone: str, probable: List[ProbableCondition], t: str
+    level: str, zone: str, probable: List[ProbableCondition], t: str, lang: str = "ru"
 ) -> Tuple[List[str], str, bool, List[str]]:
+    l = _norm_lang(lang)
     top = probable[0] if probable else None
-    doctor_map = {
-        "chest": "кардиолог (а при острой боли — скорая, затем кардиолог)",
-        "abdomen": "хирург очно при острой боли / гастроэнтеролог при хронической",
-        "head": "невролог (а при FAST-признаках — скорая)",
-        "skin": "дерматолог (а при быстром распространении/гное — хирург)",
-        "limb": "травматолог/невролог",
-        "general": "терапевт",
-    }
-    see_doctor = doctor_map.get(zone, "терапевт")
+    if l == "en":
+        doctor_map = {
+            "chest": "cardiologist (or emergency for acute pain, then cardiologist)",
+            "abdomen": "surgeon in person for acute pain / gastroenterologist for chronic",
+            "head": "neurologist (or emergency for FAST signs)",
+            "skin": "dermatologist (or surgeon if spreading/pus)",
+            "limb": "traumatologist/neurologist",
+            "general": "GP / therapist",
+        }
+    elif l == "kz":
+        doctor_map = {
+            "chest": "кардиолог (жедел ауырсынуда — жедел жәрдем, содан кейін кардиолог)",
+            "abdomen": "жедел ауырсынуда хирург / созылмалыда гастроэнтеролог",
+            "head": "невролог (FAST белгілерінде — жедел жәрдем)",
+            "skin": "дерматолог (жайылса/іріңде — хирург)",
+            "limb": "травматолог/невролог",
+            "general": "терапевт",
+        }
+    else:
+        doctor_map = {
+            "chest": "кардиолог (а при острой боли — скорая, затем кардиолог)",
+            "abdomen": "хирург очно при острой боли / гастроэнтеролог при хронической",
+            "head": "невролог (а при FAST-признаках — скорая)",
+            "skin": "дерматолог (а при быстром распространении/гное — хирург)",
+            "limb": "травматолог/невролог",
+            "general": "терапевт",
+        }
+    see_doctor = doctor_map.get(zone, doctor_map["general"])
     emergency = level in ("ORANGE", "RED")
 
     actions: List[str] = []
+    if l == "en":
+        if level == "RED":
+            actions += [
+                "1. Call emergency NOW — 103 (or 112). Do not drive yourself.",
+                "2. Rest, fresh air; sit/lie down, loosen clothing.",
+                "3. For chest pain: chew aspirin 150–300 mg ONLY if no allergy/bleeding and dispatcher approves.",
+                "4. Note onset time and all drugs taken — hand to the crew.",
+                f"5. After stabilization — urgently to: {see_doctor}.",
+            ]
+        elif level == "ORANGE":
+            actions += [
+                "1. In-person exam within hours; if worse — emergency.",
+                "2. Measure temperature, BP, pulse; track dynamics.",
+                "3. Take documents, drug and allergy list.",
+                f"4. Specialist: {see_doctor}.",
+            ]
+        elif level == "YELLOW":
+            actions += [
+                "1. Routine visit within 1–3 days.",
+                "2. Keep a symptom diary 48–72 h (what/when/triggers).",
+                f"3. Specialist: {see_doctor}.",
+            ]
+        else:
+            actions += [
+                "1. No acute emergency indications — observe 24–48 h.",
+                "2. If worse/new symptoms — repeat screening or see a doctor.",
+                f"3. For prevention — {see_doctor}, routine.",
+            ]
+        if top:
+            actions.append(f"Differential to discuss: {top.name} ({top.icd10}), ~{top.probability}%.")
+        forbidden = [
+            "Do not self-medicate with antibiotics or hormones.",
+            "Do not apply a heating pad to acute abdominal pain.",
+            "Do not open abscesses at home.",
+            "Do not delay emergency for life-threats (chest pain >15 min, FAST, bleeding, anaphylaxis).",
+        ]
+        if _surgery_suspected(zone, t, probable):
+            forbidden.insert(0, "Strictly DO NOT eat or drink before surgeon exam; no painkillers.")
+        return actions, see_doctor, emergency, forbidden
+    if l == "kz":
+        if level == "RED":
+            actions += [
+                "1. ШҰҒЫЛ жедел жәрдем шақырыңыз — 103 (немесе 112). Өзіңіз көлік жүргізбеңіз.",
+                "2. Тыныштық, таза ауа; отырыңыз/жатыңыз, киімді босатыңыз.",
+                "3. Кеуде ауырсынуында: аспирин 150–300 мг тек аллергия/қан кету жоқ болса және диспетчер рұқсат етсе.",
+                "4. Басталу уақытын және ішкен дәрілерді жазыңыз — бригадаға беріңіз.",
+                f"5. Тұрақтанған соң — шұғыл: {see_doctor}.",
+            ]
+        elif level == "ORANGE":
+            actions += [
+                "1. Алдағы сағаттарда дәрігерге көрініңіз; нашарласа — 103.",
+                "2. Температура, АҚ, пульс өлшеңіз; динамиканы бақылаңыз.",
+                "3. Құжаттар, дәрі мен аллергия тізімін алыңыз.",
+                f"4. Бейінді дәрігер: {see_doctor}.",
+            ]
+        elif level == "YELLOW":
+            actions += [
+                "1. 1–3 күнде жоспарлы дәрігерге барыңыз.",
+                "2. 48–72 сағ симптом күнделігін жүргізіңіз.",
+                f"3. Бейінді дәрігер: {see_doctor}.",
+            ]
+        else:
+            actions += [
+                "1. Жедел шұғыл көрсеткіш жоқ — 24–48 сағ бақылаңыз.",
+                "2. Күшейсе/жаңа симптом шықса — қайта скрининг немесе дәрігер.",
+                f"3. Алдын алу үшін — {see_doctor}, жоспарлы.",
+            ]
+        if top:
+            actions.append(f"Дәрігермен талқылауға: {top.name} ({top.icd10}), ~{top.probability}%.")
+        forbidden = [
+            "Антибиотик пен гормонмен өздігінен емделмеңіз.",
+            "Жедел іш ауырсынуында жылытқыш баспаңыз.",
+            "Іріңдікті үйде ашпаңыз.",
+            "Өмірге қауіпті белгілерде 103 шақыруды кешіктірмеңіз.",
+        ]
+        if _surgery_suspected(zone, t, probable):
+            forbidden.insert(0, "Хирург қарауына дейін ішіп-жеуге ҚАТАҢ тыйым; ауырсынуды басатын дәрі ішпеңіз.")
+        return actions, see_doctor, emergency, forbidden
+
+    # ru
+    actions = []
     if level == "RED":
         actions += [
             "1. НЕМЕДЛЕННО вызовите скорую — 103 (или 112). Не садитесь за руль сами.",
@@ -518,11 +1113,14 @@ def _build_actions(
     return actions, see_doctor, emergency, forbidden
 
 
-def _build_evidence(zone: str, probable: List[ProbableCondition]) -> List[EvidenceSource]:
+def _build_evidence(zone: str, probable: List[ProbableCondition], lang: str = "ru") -> List[EvidenceSource]:
+    l = _norm_lang(lang)
+    who_title = {"ru": "ВОЗ — рекомендации по первичной помощи", "en": "WHO — primary care recommendations", "kz": "ДДҰ — алғашқы көмек ұсынымдары"}[l]
+    heart_title = {"ru": "PubMed — HEART score для боли в груди (ID: 32979527)", "en": "PubMed — HEART score for chest pain (ID: 32979527)", "kz": "PubMed — кеуде ауырсынуына HEART шкаласы (ID: 32979527)"}[l]
     base: List[EvidenceSource] = [
-        EvidenceSource(title="ВОЗ — рекомендации по первичной помощи",
+        EvidenceSource(title=who_title,
                        url="https://www.who.int/publications", type="WHO"),
-        EvidenceSource(title="PubMed — HEART score для боли в груди (ID: 32979527)",
+        EvidenceSource(title=heart_title,
                        url="https://pubmed.ncbi.nlm.nih.gov/32979527/", type="PubMed"),
     ]
     zone_evidence = {
