@@ -8,8 +8,8 @@
   <style>
     .zone { cursor: pointer; transition: fill .15s ease, opacity .15s ease; }
     .zone:hover { opacity: .75; }
-    .zone.active { fill: #2563eb !important; }
-    .loader-dots span { width: 8px; height: 8px; border-radius: 9999px; background: #64748b; display: inline-block; animation: bounce 1.2s infinite; }
+    .zone.active { fill: #0f172a !important; }
+    .loader-dots span { width: 6px; height: 6px; border-radius: 9999px; background: #94a3b8; display: inline-block; animation: bounce 1.2s infinite; }
     .loader-dots span:nth-child(2) { animation-delay: .15s; }
     .loader-dots span:nth-child(3) { animation-delay: .3s; }
     @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-6px); opacity: 1; } }
@@ -18,28 +18,28 @@
     .chat-scroll { scrollbar-width: thin; }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
 
   <!-- ===== Header ===== -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
-      <a href="/" class="text-2xl font-extrabold text-blue-700">MediAI</a>
+    <div class="max-w-3xl mx-auto px-4 py-3 flex items-center gap-4">
+      <a href="/" class="text-base font-semibold tracking-tight">MediAI</a>
       <span class="hidden md:inline text-xs text-slate-500">первичный клинический триаж · доказательная медицина</span>
-      <nav class="ml-auto flex items-center gap-2 text-sm">
+      <nav class="ml-auto flex items-center gap-1 text-sm">
         <div class="relative">
-          <button id="megaBtn" class="px-3 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-700">Каталог болезней ▾</button>
+          <button id="megaBtn" class="px-3 py-1.5 rounded-lg border text-slate-700 hover:bg-slate-100">Каталог болезней ▾</button>
         </div>
-        <a href="#triage" class="px-3 py-2 rounded-lg hover:bg-slate-100">Триаж</a>
-        <a href="#sport" class="px-3 py-2 rounded-lg hover:bg-slate-100">Спорт</a>
-        <a href="#evidence" class="hidden md:inline px-3 py-2 rounded-lg hover:bg-slate-100">Источники</a>
-        <span class="px-3 py-2 rounded-lg bg-red-50 text-red-700 font-semibold">Скорая: 103</span>
+        <a href="#triage" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Триаж</a>
+        <a href="#sport" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Спорт</a>
+        <a href="#evidence" class="hidden md:inline px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Источники</a>
+        <span class="px-2 py-1.5 text-sm font-medium text-red-700">Скорая: 103</span>
       </nav>
     </div>
     <!-- WebMD мега-меню: 4 колонки, данные из GET /api/conditions -->
-    <div id="megaMenu" class="mega absolute left-0 right-0 top-full bg-white border-b border-slate-200 shadow-xl z-40">
-      <div class="max-w-7xl mx-auto px-4 py-6">
+    <div id="megaMenu" class="mega absolute left-0 right-0 top-full bg-white border-b border-slate-200 z-40">
+      <div class="max-w-3xl mx-auto px-4 py-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="font-bold text-lg">Каталог заболеваний <span class="text-xs font-normal text-slate-500">с кодами МКБ-10</span></h2>
+          <h2 class="font-semibold text-base">Каталог заболеваний <span class="text-xs font-normal text-slate-500">с кодами МКБ-10</span></h2>
           <button id="megaClose" class="text-sm text-slate-500 hover:text-slate-900">Закрыть ✕</button>
         </div>
         <div id="megaGrid" class="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -49,12 +49,12 @@
     </div>
   </header>
 
-  <!-- ===== Layout: сайдбар + контент ===== -->
-  <div class="max-w-7xl mx-auto px-4 py-6 w-full grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 flex-1">
+  <!-- ===== Layout: одна колонка, чат — в центре ===== -->
+  <div class="max-w-3xl mx-auto px-4 py-6 w-full flex flex-col gap-4 flex-1">
 
-    <!-- ===== Сайдбар: профиль ===== -->
-    <aside class="bg-white rounded-2xl border border-slate-200 p-5 h-fit lg:sticky lg:top-20">
-      <h2 class="font-bold mb-3">Профиль пациента</h2>
+    <!-- ===== Профиль ===== -->
+    <aside class="bg-white rounded-xl border border-slate-200 p-5">
+      <h2 class="text-sm font-semibold mb-3">Профиль пациента</h2>
       <div class="grid grid-cols-2 gap-3 text-sm">
         <label class="block">Возраст
           <input id="age" type="number" min="0" max="120" value="35" class="mt-1 w-full border rounded-lg px-2 py-1.5" />
@@ -76,37 +76,37 @@
         <input id="dietFlag" type="checkbox" class="w-4 h-4" /> Запросить лечебное питание
       </label>
       <div class="mt-3 text-sm">
-        <p class="font-semibold mb-1">Теги симптомов</p>
+        <p class="font-medium mb-1">Теги симптомов</p>
         <div class="flex flex-wrap gap-1.5" id="tagRow">
-          <button data-tag="острая боль" class="tagBtn px-2 py-1 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">острая боль</button>
-          <button data-tag="лихорадка" class="tagBtn px-2 py-1 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">лихорадка</button>
-          <button data-tag="тошнота" class="tagBtn px-2 py-1 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">тошнота</button>
-          <button data-tag="одышка" class="tagBtn px-2 py-1 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">одышка</button>
-          <button data-tag="сыпь" class="tagBtn px-2 py-1 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">сыпь</button>
+          <button data-tag="острая боль" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">острая боль</button>
+          <button data-tag="лихорадка" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">лихорадка</button>
+          <button data-tag="тошнота" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">тошнота</button>
+          <button data-tag="одышка" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">одышка</button>
+          <button data-tag="сыпь" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">сыпь</button>
         </div>
         <input id="tagsInput" placeholder="свои теги через запятую" class="mt-2 w-full border rounded-lg px-2 py-1.5 text-sm" />
       </div>
-      <div class="mt-4 p-3 rounded-xl bg-amber-50 text-xs text-amber-900">
+      <div class="mt-4 p-3 rounded-lg border text-xs text-slate-600">
         Не заменяет врача. При жизнеугрожающих симптомах — 103/112.
       </div>
     </aside>
 
     <!-- ===== Контент ===== -->
-    <main class="flex flex-col gap-6 min-w-0">
+    <main class="flex flex-col gap-4 min-w-0">
 
       <!-- Карта тела -->
-      <section id="triage" class="bg-white rounded-2xl border border-slate-200 p-5">
-        <h2 class="font-bold mb-1">1. Выберите зону тела</h2>
+      <section id="triage" class="bg-white rounded-xl border border-slate-200 p-5">
+        <h2 class="text-sm font-semibold mb-1">1. Выберите зону тела</h2>
         <p class="text-sm text-slate-500 mb-3">Кликните по карте или кнопке — зона подставится в скрининг.</p>
         <div class="flex flex-col sm:flex-row gap-4 items-center">
           <svg id="bodyMap" viewBox="0 0 140 320" class="h-64 w-auto shrink-0" role="img" aria-label="Интерактивная карта тела">
-            <ellipse cx="70" cy="32" rx="22" ry="26" fill="#cbd5e1" class="zone" data-zone="голова" />
-            <rect x="48" y="62" width="44" height="58" rx="10" fill="#cbd5e1" class="zone" data-zone="грудь" />
-            <rect x="48" y="122" width="44" height="56" rx="10" fill="#cbd5e1" class="zone" data-zone="живот" />
-            <rect x="18" y="66" width="22" height="80" rx="10" fill="#cbd5e1" class="zone" data-zone="конечности" />
-            <rect x="100" y="66" width="22" height="80" rx="10" fill="#cbd5e1" class="zone" data-zone="конечности" />
-            <rect x="50" y="182" width="18" height="110" rx="9" fill="#cbd5e1" class="zone" data-zone="конечности" />
-            <rect x="72" y="182" width="18" height="110" rx="9" fill="#cbd5e1" class="zone" data-zone="конечности" />
+            <ellipse cx="70" cy="32" rx="22" ry="26" fill="#e2e8f0" class="zone" data-zone="голова" />
+            <rect x="48" y="62" width="44" height="58" rx="10" fill="#e2e8f0" class="zone" data-zone="грудь" />
+            <rect x="48" y="122" width="44" height="56" rx="10" fill="#e2e8f0" class="zone" data-zone="живот" />
+            <rect x="18" y="66" width="22" height="80" rx="10" fill="#e2e8f0" class="zone" data-zone="конечности" />
+            <rect x="100" y="66" width="22" height="80" rx="10" fill="#e2e8f0" class="zone" data-zone="конечности" />
+            <rect x="50" y="182" width="18" height="110" rx="9" fill="#e2e8f0" class="zone" data-zone="конечности" />
+            <rect x="72" y="182" width="18" height="110" rx="9" fill="#e2e8f0" class="zone" data-zone="конечности" />
           </svg>
           <div class="flex-1 w-full">
             <div class="flex flex-wrap gap-2" id="zoneRow">
@@ -118,14 +118,14 @@
             </div>
             <p class="mt-2 text-sm">Выбрано: <b id="zoneLabel">живот</b></p>
             <div class="mt-3">
-              <p class="text-sm font-semibold mb-1">Частые жалобы — подставить одним нажатием</p>
+              <p class="text-sm font-medium mb-1">Частые жалобы — подставить одним нажатием</p>
               <div class="flex flex-wrap gap-2" id="presetRow">
-                <button data-preset="throat-fever" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Боль в горле + температура</button>
-                <button data-preset="chest-press" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Давящая боль в груди</button>
-                <button data-preset="abdomen-rl" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Боль справа внизу живота</button>
-                <button data-preset="migraine" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Мигренеподобная головная боль</button>
-                <button data-preset="rash" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Сыпь распространяется</button>
-                <button data-preset="back-numb" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Боль в спине + онемение</button>
+                <button data-preset="throat-fever" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Боль в горле + температура</button>
+                <button data-preset="chest-press" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Давящая боль в груди</button>
+                <button data-preset="abdomen-rl" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Боль справа внизу живота</button>
+                <button data-preset="migraine" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Мигренеподобная головная боль</button>
+                <button data-preset="rash" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Сыпь распространяется</button>
+                <button data-preset="back-numb" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Боль в спине + онемение</button>
               </div>
               <p class="mt-1 text-xs text-slate-500">Пресет заполняет зону, текст и теги. Зона «голова» покрывает горло/шею (маппинг горло→голова).</p>
             </div>
@@ -133,7 +133,7 @@
         </div>
         <!-- TASK-008: фото-конверт для врача (не автодиагноз) -->
         <div class="mt-4 border-t border-slate-200 pt-4" id="photoBlock">
-          <p class="text-sm font-semibold mb-1">Фото для врача <span class="font-normal text-slate-500">(необязательно, макс. 3 — jpeg/png/webp до 8 МБ)</span></p>
+          <p class="text-sm font-medium mb-1">Фото для врача <span class="font-normal text-slate-500">(необязательно, макс. 3 — jpeg/png/webp до 8 МБ)</span></p>
           <p class="text-xs text-slate-500 mb-2">Фото для врача, не автодиагноз: снимок не влияет на оценку и прикладывается как вложение для очного приёма. Не загружайте фото лица и документов — это персональные данные.</p>
           <label class="flex items-start gap-2 text-xs text-slate-700 mb-2">
             <input id="photoConsent" type="checkbox" class="w-4 h-4 mt-0.5" />
@@ -141,7 +141,7 @@
           </label>
           <div class="flex items-center gap-2">
             <input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" class="text-xs" />
-            <button id="photoUploadBtn" class="px-3 py-1.5 rounded-full border text-xs bg-white hover:bg-blue-50">Загрузить</button>
+            <button id="photoUploadBtn" class="px-3 py-1.5 rounded-full border text-xs bg-white hover:bg-slate-100">Загрузить</button>
           </div>
           <p id="photoHint" class="text-xs text-slate-500 mt-1"></p>
           <div id="photoList" class="flex flex-wrap gap-2 mt-2"></div>
@@ -149,14 +149,14 @@
       </section>
 
       <!-- Чат -->
-      <section class="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col">
-        <h2 class="font-bold mb-1">Шаг 1–2. Опишите симптомы и пройдите уточнение</h2>
-        <ol id="steps" class="flex flex-wrap items-center gap-2 text-xs mb-3" aria-label="Этапы триажа">
+      <section class="bg-white rounded-xl border border-slate-200 p-5 flex flex-col">
+        <h2 class="text-sm font-semibold mb-1">Шаг 1–2. Опишите симптомы и пройдите уточнение</h2>
+        <ol id="steps" class="flex flex-wrap items-center gap-2 text-xs text-slate-500 mb-3" aria-label="Этапы триажа">
           <li data-step="1" class="px-2.5 py-1 rounded-full border">Шаг 1 — профиль и симптомы</li>
           <li data-step="2" class="px-2.5 py-1 rounded-full border">Шаг 2 — уточнение: вопрос <span id="stepQpos">–</span>/3</li>
           <li data-step="3" class="px-2.5 py-1 rounded-full border">Шаг 3 — оценка + как посчитали</li>
         </ol>
-        <div id="chat" class="chat-scroll flex flex-col gap-3 max-h-[420px] overflow-y-auto border rounded-xl p-3 bg-slate-50 mb-3">
+        <div id="chat" class="chat-scroll flex flex-col gap-3 max-h-[420px] overflow-y-auto border rounded-xl p-3 bg-white mb-3">
           <div class="self-start max-w-[85%] bg-white border rounded-xl px-3 py-2 text-sm">
             Здравствуйте! Я MediAI. Опишите симптомы своими словами в поле ниже и нажмите «Отправить» —
             я задам ровно 3 уточняющих вопроса для исключения острых состояний.
@@ -170,16 +170,16 @@
         <div class="relative flex items-center gap-2">
           <div class="relative">
             <button id="plusBtn" title="Дополнительно" class="w-10 h-10 rounded-full border text-xl leading-none hover:bg-slate-100">+</button>
-            <div id="plusMenu" class="hidden absolute bottom-12 left-0 w-56 bg-white border rounded-xl shadow-lg p-2 text-sm z-30">
+            <div id="plusMenu" class="hidden absolute bottom-12 left-0 w-56 bg-white border rounded-xl p-2 text-sm z-30">
               <button id="plusDiet" class="block w-full text-left px-2 py-1.5 rounded hover:bg-slate-100">Включить запрос диеты</button>
               <button id="plusClear" class="block w-full text-left px-2 py-1.5 rounded hover:bg-slate-100">Очистить чат</button>
               <button id="plusSport" class="block w-full text-left px-2 py-1.5 rounded hover:bg-slate-100">Перейти к спорт-плану</button>
             </div>
           </div>
           <input id="symptoms" placeholder="Опишите симптомы своими словами…" class="flex-1 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <button id="sendBtn" class="px-5 py-2.5 rounded-full bg-blue-600 text-white text-sm hover:bg-blue-700">Отправить</button>
+          <button id="sendBtn" class="px-5 py-2.5 rounded-full bg-slate-900 text-white text-sm hover:bg-slate-700">Отправить</button>
         </div>
-        <button id="finalBtn" disabled class="mt-3 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm disabled:opacity-40 hover:bg-slate-700">
+        <button id="finalBtn" disabled class="mt-3 px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm disabled:opacity-40 hover:bg-slate-700">
           Получить оценку риска
         </button>
         <label class="mt-2 flex items-start gap-2 text-sm text-slate-700">
@@ -189,19 +189,19 @@
       </section>
 
       <!-- Результат + шкала триажа -->
-      <section id="result" class="hidden bg-white rounded-2xl border border-slate-200 p-5">
-        <div id="emergencyBanner" class="hidden mb-3 p-3 rounded-xl bg-red-600 text-white text-sm font-semibold"></div>
-        <h2 class="font-bold mb-2">Результат триажа (предварительный, не диагноз)</h2>
+      <section id="result" class="hidden bg-white rounded-xl border border-slate-200 p-5">
+        <div id="emergencyBanner" class="hidden mb-3 p-3 rounded-lg bg-red-600 text-white text-sm font-semibold"></div>
+        <h2 class="text-sm font-semibold mb-2">Результат триажа (предварительный, не диагноз)</h2>
         <p class="text-xs text-slate-500 mb-2">Эвристическая оценка для обсуждения с врачом. Не ставит диагноз и не заменяет очный осмотр.</p>
-        <p id="framing" class="mb-3 p-3 rounded-xl bg-slate-50 border text-sm text-slate-700"></p>
-        <div id="photosBox" class="hidden mb-3 p-3 rounded-xl bg-slate-50 border text-sm"></div>
+        <p id="framing" class="mb-3 p-3 rounded-lg border text-sm text-slate-700"></p>
+        <div id="photosBox" class="hidden mb-3 p-3 rounded-lg border text-sm"></div>
         <div class="flex items-center gap-3 mb-1 text-sm">
           <span id="triageBadge" class="px-3 py-1 rounded-full font-bold text-white">—</span>
           <span>Риск: <b id="riskScore">—</b></span>
           <span>ИМТ: <b id="bmiVal">—</b> (<span id="bmiCat">—</span>)</span>
         </div>
         <!-- Шкала триажа -->
-        <div class="relative h-4 rounded-full overflow-visible mb-1 flex">
+        <div class="relative h-2 rounded-full overflow-visible mb-1 flex">
           <div class="h-full bg-green-500" style="width:25%"></div>
           <div class="h-full bg-yellow-400" style="width:35%"></div>
           <div class="h-full bg-orange-500" style="width:25%"></div>
@@ -213,29 +213,29 @@
         </div>
         <div class="grid md:grid-cols-2 gap-4 text-sm">
           <div>
-            <h3 class="font-semibold mb-1">Возможные причины (не диагноз, МКБ-10 для обсуждения с врачом)</h3>
+            <h3 class="text-sm font-semibold mb-1">Возможные причины (не диагноз, МКБ-10 для обсуждения с врачом)</h3>
             <div id="conds" class="flex flex-col gap-2"></div>
           </div>
           <div>
-            <h3 class="font-semibold mb-1">Лечебное питание</h3>
-            <div id="diet" class="p-3 rounded-xl bg-slate-50 border text-sm"></div>
+            <h3 class="text-sm font-semibold mb-1">Лечебное питание</h3>
+            <div id="diet" class="p-3 rounded-lg border text-sm"></div>
           </div>
         </div>
         <div class="grid md:grid-cols-2 gap-4 text-sm mt-4">
           <div>
-            <h3 class="font-semibold mb-1">Пошаговый план</h3>
+            <h3 class="text-sm font-semibold mb-1">Пошаговый план</h3>
             <ol id="actions" class="list-decimal ml-5 flex flex-col gap-1"></ol>
             <p class="mt-2">Врач: <b id="seeDoctor">—</b></p>
-            <h3 class="font-semibold mt-3 mb-1 text-red-700">Категорически нельзя</h3>
+            <h3 class="text-sm font-semibold mt-3 mb-1 text-red-700">Категорически нельзя</h3>
             <ul id="forbidden" class="list-disc ml-5 flex flex-col gap-1 text-red-900"></ul>
           </div>
           <div id="evidence">
-            <h3 class="font-semibold mb-1">Доказательные источники</h3>
+            <h3 class="text-sm font-semibold mb-1">Доказательные источники</h3>
             <div id="evList" class="flex flex-col gap-1"></div>
           </div>
         </div>
-        <div class="mt-4 p-3 rounded-xl bg-slate-50 border text-sm" id="howCounted">
-          <h3 class="font-semibold mb-1">Как мы посчитали (прозрачность)</h3>
+        <div class="mt-4 p-3 rounded-lg border text-sm" id="howCounted">
+          <h3 class="text-sm font-semibold mb-1">Как мы посчитали (прозрачность)</h3>
           <p class="text-xs text-slate-500 mb-2">Эвристические правила, не диагноз. Версия правил: <b id="rulesVer">—</b>. Баллы суммируются в эвристический риск-балл (пороги триажа 25/60/85).</p>
           <ul id="breakdown" class="list-disc ml-5 flex flex-col gap-1"></ul>
           <p class="text-xs text-slate-500 mt-2">Оценки причин — качественные (низкая / средняя / высокая). Числа в JSON оставлены для совместимости и не являются точной вероятностью диагноза.</p>
@@ -243,8 +243,8 @@
       </section>
 
       <!-- Спорт -->
-      <section id="sport" class="bg-white rounded-2xl border border-slate-200 p-5">
-        <h2 class="font-bold mb-1">Спорт-план</h2>
+      <section id="sport" class="bg-white rounded-xl border border-slate-200 p-5">
+        <h2 class="text-sm font-semibold mb-1">Спорт-план</h2>
         <p class="text-sm text-slate-500 mb-3">Реалистичный темп без завышенных ожиданий. Данные профиля подставляются из сайдбара.</p>
         <div class="grid sm:grid-cols-3 gap-3 text-sm">
           <label class="block">Цель
@@ -266,7 +266,7 @@
             </select>
           </label>
           <div class="flex items-end">
-            <button id="sportBtn" class="w-full px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">Рассчитать план</button>
+            <button id="sportBtn" class="w-full px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-700">Рассчитать план</button>
           </div>
         </div>
         <div id="sportOut" class="hidden mt-4 text-sm"></div>
@@ -327,7 +327,7 @@ function renderPhotos() {
   box.innerHTML = '';
   state.photoIds.forEach((pid, i) => {
     const el = document.createElement('div');
-    el.className = 'flex items-center gap-1 text-xs border rounded-full pl-2 pr-1 py-0.5 bg-slate-50';
+    el.className = 'flex items-center gap-1 text-xs border rounded-full pl-2 pr-1 py-0.5 bg-white';
     const label = document.createElement('span');
     label.className = 'font-mono';
     label.textContent = 'фото ' + (i + 1);
@@ -368,7 +368,7 @@ const PRESETS = {
 function syncTagButtons() {
   document.querySelectorAll('.tagBtn').forEach(b => {
     const on = state.tags.has(b.dataset.tag);
-    b.classList.toggle('bg-blue-600', on);
+    b.classList.toggle('bg-slate-900', on);
     b.classList.toggle('text-white', on);
   });
 }
@@ -441,7 +441,7 @@ async function loadConditions() {
     for (const [cat, items] of Object.entries(data.categories)) {
       const col = document.createElement('div');
       // TASK-012 XSS: category name is server data -> textContent only.
-      col.appendChild(makeEl('h3', 'font-semibold capitalize mb-2 text-blue-800', cat));
+      col.appendChild(makeEl('h3', 'font-semibold capitalize mb-2 text-slate-700', cat));
       const ul = document.createElement('ul');
       ul.className = 'flex flex-col gap-1.5 text-sm';
       for (const c of items) {
@@ -471,7 +471,7 @@ function setZone(z) {
   document.querySelectorAll('#bodyMap .zone').forEach(el => el.classList.toggle('active', el.dataset.zone === z));
   document.querySelectorAll('.zoneBtn').forEach(b => {
     const on = b.dataset.zone === z;
-    b.classList.toggle('bg-blue-600', on); b.classList.toggle('text-white', on); b.classList.toggle('border', !on);
+    b.classList.toggle('bg-slate-900', on); b.classList.toggle('text-white', on); b.classList.toggle('border', !on);
   });
 }
 document.querySelectorAll('#bodyMap .zone').forEach(el => el.addEventListener('click', () => setZone(el.dataset.zone)));
@@ -495,7 +495,7 @@ $('plusSport').onclick = () => { $('plusMenu').classList.add('hidden'); document
 function addMsg(who, text) {
   const d = document.createElement('div');
   d.className = who === 'user'
-    ? 'self-end max-w-[85%] bg-blue-600 text-white rounded-xl px-3 py-2 text-sm'
+    ? 'self-end max-w-[85%] bg-slate-900 text-white rounded-xl px-3 py-2 text-sm'
     : 'self-start max-w-[85%] bg-white border rounded-xl px-3 py-2 text-sm';
   d.textContent = text;
   $('chat').appendChild(d);
@@ -529,7 +529,7 @@ async function sendSymptoms() {
   addMsg('user', p.symptoms_text);
   setLoading(true);
   // Скелетон только на время реального fetch (без искусственных задержек).
-  $('questions').innerHTML = '<div class="border rounded-xl p-3 bg-slate-50 animate-pulse"><div class="h-3 bg-slate-200 rounded w-2/3 mb-2"></div><div class="h-3 bg-slate-200 rounded w-1/2"></div><p class="text-xs text-slate-500 mt-2">Запрос выполняется…</p></div>';
+  $('questions').innerHTML = '<div class="border rounded-xl p-3 bg-white animate-pulse"><div class="h-3 bg-slate-200 rounded w-2/3 mb-2"></div><div class="h-3 bg-slate-200 rounded w-1/2"></div><p class="text-xs text-slate-500 mt-2">Запрос выполняется…</p></div>';
   try {
     const r = await fetch('/api/triage/initial', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -560,7 +560,7 @@ function renderOneQuestion() {
   if (!q) { updateFinalBtn(); return; }
   const idx = state.qIndex;
   const card = document.createElement('div');
-  card.className = 'border rounded-xl p-3 bg-slate-50';
+  card.className = 'border rounded-xl p-3 bg-white';
   // TASK-012 XSS: question text/reason/options are server data -> textContent only.
   // Counter line is local ints (safe static skeleton pattern kept as elements).
   card.appendChild(makeEl('p', 'text-xs text-slate-500 mb-1', 'Вопрос ' + (idx + 1) + ' из ' + state.questions.length));
@@ -570,8 +570,8 @@ function renderOneQuestion() {
   row.className = 'flex flex-wrap gap-2';
   (q.options || ['Да', 'Нет', 'Не уверен(а)']).forEach(opt => {
     const b = document.createElement('button');
-    b.className = 'ansBtn px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-blue-50';
-    if (state.answers[q.id] === opt) b.classList.add('bg-blue-600', 'text-white');
+    b.className = 'ansBtn px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-slate-100';
+    if (state.answers[q.id] === opt) b.classList.add('bg-slate-900', 'text-white');
     b.textContent = opt;
     b.onclick = () => {
       state.answers[q.id] = opt;
@@ -657,7 +657,7 @@ function renderResult(d) {
   const conds = $('conds'); clearEl(conds);
   d.probable_conditions.forEach(c => {
     const el = document.createElement('div');
-    el.className = 'border rounded-xl p-2.5 bg-slate-50';
+    el.className = 'border rounded-lg p-2.5 bg-white';
     // TASK-012 XSS: name/icd10/reason/probability are server data -> DOM only.
     const head = document.createElement('div');
     head.className = 'flex justify-between gap-2';
@@ -667,7 +667,7 @@ function renderResult(d) {
     const barWrap = document.createElement('div');
     barWrap.className = 'h-2 rounded bg-slate-200 mt-1.5';
     const bar = document.createElement('div');
-    bar.className = 'h-2 rounded bg-blue-600';
+    bar.className = 'h-2 rounded bg-slate-900';
     const pct = Math.min(100, Math.max(0, Number(c.probability) || 0));
     bar.style.width = pct + '%';
     barWrap.appendChild(bar);
@@ -741,7 +741,7 @@ $('sportBtn').onclick = async () => {
     clearEl(out);
     const grid = makeEl('div', 'grid sm:grid-cols-4 gap-2 mb-2');
     const stat = (label, val, extra) => {
-      const cell = makeEl('div', 'border rounded-xl p-2', label);
+      const cell = makeEl('div', 'border rounded-lg p-2', label);
       cell.appendChild(document.createElement('br'));
       cell.appendChild(makeEl('b', null, val));
       if (extra) cell.appendChild(makeEl('span', 'text-xs', ' (' + extra + ')'));
