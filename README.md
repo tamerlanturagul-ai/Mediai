@@ -7,11 +7,22 @@ MediAI анализирует симптомы своими словами, зо
 Отдельный модуль рассчитывает безопасный спортивный план с реалистичными сроками.
 
 Стек: Python (FastAPI + Uvicorn + Pydantic) + статический фронтенд (HTML/JS/Tailwind CSS).
+UI — CLINICAL CONSOLE (TASK-024, спек — `medi-ai/DESIGN.md`): hero + 3-pill step rail + сетка интейк/консультация (5fr/7fr при ≥1120px).
+Токены на CSS-переменных (~50: surfaces/ink/lines, teal-акцент, семантика `data-level`/`data-kind`); закрыт дефект A2 — YELLOW-бейдж `#713f12` на `#facc15` (контраст ~6:1).
+Ответы хранятся и шлются каноном `yes`/`no`/`unsure` независимо от языка UI (RU/EN/KZ); шрифт Golos Text вендорен (офлайн, OFL-1.1).
+
+## Запуск для жюри (30 секунд)
+
+Дабл-клик `start-jury.bat` (корень репозитория) → откроется `http://127.0.0.1:8001`.
+Демо-путь: пресет «Давящая боль в груди» → «Отправить» → ответить на 3 вопроса → галочка согласия → «Получить оценку риска».
+Требуется только Python 3.10+; после установки зависимостей интернет не нужен (фронт и шрифты вендорены, без CDN).
+Порт 8001 выбран, чтобы не конфликтовать с классическим `:8000`.
 
 ## Структура проекта
 
 ```text
 medi-ai/
+├── DESIGN.md              # TASK-024: спек нового UI CLINICAL CONSOLE
 ├── Dockerfile             # TASK-012: python:3.12-slim, non-root, uvicorn --workers 2, no reload
 ├── .dockerignore          # TASK-012: uploads/tests/__pycache__/.git вне образа
 ├── app/
@@ -29,11 +40,14 @@ medi-ai/
 │   ├── sport_engine.py      # Расчёт спорта: темп, сроки, противопоказания, PAR-Q
 │   ├── uploads/             # загруженные фото (git-ignored, никогда не коммитить)
 │   └── static/
-│       ├── index.html       # Главная страница (XSS-safe DOM, без CDN)
+│       ├── index.html       # Главная страница (XSS-safe DOM, без CDN; TASK-024: реворк CLINICAL CONSOLE, 1614 строк)
+│       ├── fonts/*.woff2    # TASK-024: вендоренный Golos Text 400/500/600 × cyrillic/latin (OFL-1.1, офлайн)
+│       ├── mark.png         # TASK-024: знак 256×256 (transparent)
+│       ├── favicon.png      # TASK-024: фавикон 64×64
 │       └── tailwind.css     # TASK-012: вендоренный pinned CSS (Tailwind v3.4 значения, офлайн)
 ├── tests/
 │   ├── conftest.py          # fixtures: client, tmp_upload_dir (TASK-010)
-│   └── test_*.py            # 9 модулей (+ test_release.py TASK-012)
+│   └── test_*.py            # 10 модулей: contracts, golden_regression, honest_outputs, i18n_dedup, p0_security, photo_upload, release, sport_hardening, tone_presets_stages, triage_safety
 └── requirements.txt     # fastapi, uvicorn, pydantic, httpx, pillow, python-multipart, slowapi
 ```
 
