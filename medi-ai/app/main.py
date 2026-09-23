@@ -6,15 +6,18 @@
 
 import logging
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 
+from .domain.rules import RULES_VERSION
 from .i18n import resolve_lang
 from .schemas import (
     ConditionsResponse,
@@ -29,6 +32,8 @@ from .schemas import (
 )
 from .security import (
     LIMIT_CONDITIONS,
+    LIMIT_PHOTO_DELETE,
+    LIMIT_PHOTO_GET,
     LIMIT_SPORT_PLAN,
     LIMIT_TRIAGE_FINAL,
     LIMIT_TRIAGE_INITIAL,
@@ -37,14 +42,19 @@ from .security import (
     key_matches,
     limiter,
     requires_auth,
+    set_security_headers,
 )
 from .services.photo_service import (
+    EXT_TO_MEDIA_TYPE,
     MAX_PHOTO_BYTES,
     MAX_PHOTOS_PER_TRIAGE,
     PhotoUploadError,
+    delete_photo,
     get_photo_info,
+    get_photo_path,
     photo_exists,
     save_photo,
+    sweep_expired_photos,
 )
 from .sport_engine import build_sport_plan
 from .triage_engine import (
@@ -56,6 +66,9 @@ from .triage_engine import (
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 INDEX_HTML = STATIC_DIR / "index.html"
+
+# TASK-012 release: single app version const (mirrors FastAPI version + pyproject).
+APP_VERSION = "1.0.0"
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +104,17 @@ def _resolve_lang(lang: str | None) -> str:
     return resolve_lang(lang)
 
 
-app = FastAPI(title="MediAI — первичный клинический триаж", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """TASK-012: TTL sweep on startup (best effort, never blocks boot)."""
+    try:
+        sweep_expired_photos()
+    except Exception:
+        logger.exception("photo TTL sweep failed on startup")
+    yield
+
+
+app = FastAPI(title="MediAI — первичный клинический триаж", version=APP_VERSION, lifespan=lifespan)
 
 # CORS: whitelist only; never '*' + credentials (browsers reject it).
 _CORS_ORIGINS = _cors_origins()
@@ -110,29 +133,32 @@ app.state.limiter = limiter
 
 
 @app.exception_handler(RateLimitExceeded)
-def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:  # type: ignore[no-untyped-def]
-    return JSONResponse(status_code=429, content={"detail": GENERIC_RATE_LIMIT_ERROR})
+def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    resp = JSONResponse(status_code=429, content={"detail": GENERIC_RATE_LIMIT_ERROR})
+    return set_security_headers(resp)
 
 
 @app.exception_handler(RequestValidationError)
-def validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:  # type: ignore[no-untyped-def]
+def validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     # TASK-009 P0: 422 with GENERIC text. Field names / rejected values /
     # paths stay in server logs only.
     logger.warning("validation failed: %s %s", request.method, request.url.path)
-    return JSONResponse(status_code=422, content={"detail": GENERIC_VALIDATION_ERROR})
+    resp = JSONResponse(status_code=422, content={"detail": GENERIC_VALIDATION_ERROR})
+    return set_security_headers(resp)
 
 
 @app.exception_handler(Exception)
-def unexpected_handler(request: Request, exc: Exception) -> JSONResponse:  # type: ignore[no-untyped-def]
+def unexpected_handler(request: Request, exc: Exception) -> JSONResponse:
     # TASK-009 P0: unexpected failure -> logged with traceback, client gets
     # a generic 500. (HTTPException keeps its own handler: Starlette matches
     # HTTPException before this generic Exception handler in the MRO walk.)
     logger.exception("unhandled error: %s %s", request.method, request.url.path)
-    return JSONResponse(status_code=500, content={"detail": GENERIC_SERVER_ERROR})
+    resp = JSONResponse(status_code=500, content={"detail": GENERIC_SERVER_ERROR})
+    return set_security_headers(resp)
 
 
 @app.middleware("http")
-async def api_key_middleware(request: Request, call_next):  # type: ignore[no-untyped-def]
+async def api_key_middleware(request: Request, call_next: object) -> Response:
     """TASK-009 P0: X-API-Key gate on all /api/* except /api/health.
 
     Keys come from the API_KEYS env var (comma-separated). When API_KEYS is
@@ -142,8 +168,16 @@ async def api_key_middleware(request: Request, call_next):  # type: ignore[no-un
     if requires_auth(request.url.path, request.method):
         keys = get_api_keys()
         if keys and not key_matches(request.headers.get("x-api-key"), keys):
-            return JSONResponse(status_code=401, content={"detail": GENERIC_AUTH_ERROR})
-    return await call_next(request)
+            return set_security_headers(JSONResponse(status_code=401, content={"detail": GENERIC_AUTH_ERROR}))
+    resp = await call_next(request)  # type: ignore[operator]
+    return set_security_headers(resp)
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next: object) -> Response:
+    """TASK-012: hardening headers on every response (idempotent)."""
+    resp = await call_next(request)  # type: ignore[operator]
+    return set_security_headers(resp)
 
 
 @app.get("/", include_in_schema=False)
@@ -154,8 +188,9 @@ def serve_index() -> FileResponse:
 
 
 @app.get("/api/health")
-def health() -> dict:
-    return {"status": "ok", "service": "medi-ai"}
+def health() -> dict[str, str]:
+    """Liveness probe (always open) + release versions for ops pinning."""
+    return {"status": "ok", "service": "medi-ai", "version": APP_VERSION, "rules_version": RULES_VERSION}
 
 
 @app.get("/api/conditions", response_model=ConditionsResponse)
@@ -174,7 +209,7 @@ def triage_initial(request: Request, req: TriageInitialRequest) -> TriageInitial
     if len(questions) != 3:
         raise HTTPException(status_code=500, detail="Движок вернул не 3 вопроса")
     lang = _resolve_lang(getattr(req, "lang", "ru"))
-    return TriageInitialResponse(questions=questions, lang=lang)  # type: ignore[arg-type]
+    return TriageInitialResponse(questions=questions, lang=lang)  # type: ignore[arg-type]  # lang narrowed to ru/en/kz by _resolve_lang contract
 
 
 def _read_upload_capped(file: UploadFile) -> bytes:
@@ -227,6 +262,37 @@ def triage_photo(request: Request, file: UploadFile = File(...)) -> PhotoUploadR
     except PhotoUploadError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     return PhotoUploadResponse(**saved)
+
+
+@app.get("/api/triage/photo/{photo_id}")
+@limiter.limit(LIMIT_PHOTO_GET)
+def get_photo(request: Request, photo_id: str) -> FileResponse:
+    """TASK-012: retrieve a stored photo (auth-gated like other /api/*).
+
+    The api_key_middleware already enforces X-API-Key when API_KEYS is set;
+    /api/health stays the only open probe. Unknown/invalid ids -> 404
+    (generic body, no path leaks).
+    """
+    path = get_photo_path(photo_id)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Фото не найдено")
+    media_type = EXT_TO_MEDIA_TYPE.get(path.suffix.lower(), "application/octet-stream")
+    return FileResponse(str(path), media_type=media_type)
+
+
+@app.delete("/api/triage/photo/{photo_id}")
+@limiter.limit(LIMIT_PHOTO_DELETE)
+def remove_photo(request: Request, photo_id: str) -> dict[str, object]:
+    """TASK-012: delete a photo envelope.
+
+    Ownership: holder of a valid X-API-Key (enforced by middleware when
+    API_KEYS is set). When auth is disabled (local dev, no API_KEYS) any
+    client may delete — production MUST set API_KEYS (see README).
+    Unknown ids -> 404.
+    """
+    if not delete_photo(photo_id):
+        raise HTTPException(status_code=404, detail="Фото не найдено")
+    return {"deleted": True, "photo_id": photo_id}
 
 
 @app.post("/api/triage/final", response_model=TriageFinalResponse)
@@ -292,16 +358,17 @@ def sport_plan(request: Request, req: SportPlanRequest) -> SportPlanResponse:
 
 
 @app.exception_handler(404)
-def not_found_handler(request, exc):  # type: ignore[no-untyped-def]
+def not_found_handler(request: Request, exc: HTTPException) -> Response:
     if str(request.url.path).startswith("/api/"):
-        return JSONResponse(status_code=404, content={"detail": "Эндпоинт не найден"})
+        return set_security_headers(JSONResponse(status_code=404, content={"detail": "Эндпоинт не найден"}))
     # Для SPA-маршрутов отдаём index.html, если он есть
     if INDEX_HTML.exists():
-        return FileResponse(str(INDEX_HTML), media_type="text/html")
-    return JSONResponse(status_code=404, content={"detail": "Не найдено"})
+        return set_security_headers(FileResponse(str(INDEX_HTML), media_type="text/html"))
+    return set_security_headers(JSONResponse(status_code=404, content={"detail": "Не найдено"}))
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    # TASK-012 prod: loopback only, no reload (Dockerfile runs uvicorn --workers).
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000)

@@ -110,7 +110,7 @@ def test_frontend_stages_and_presets_present():
         assert f'data-preset="{key}"' in h, f"missing preset button {key}"
     assert 'id="steps"' in h and h.count('data-step=') >= 3
     assert 'id="stepQpos"' in h
-    assert "renderOneQuestion" in h and "Вопрос ${idx + 1} из" in h
+    assert "renderOneQuestion" in h and "Вопрос " in h  # TASK-012: counter via textContent (no innerHTML template)
     assert 'id="framing"' in h and "framingText" in h
     assert "FRAMING" in h
     # skeleton only around real fetch, How-we-counted kept

@@ -24,9 +24,13 @@ from __future__ import annotations
 
 import hmac
 import os
+from typing import TypeVar
 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from starlette.responses import Response
+
+_TResp = TypeVar("_TResp", bound=Response)
 
 API_KEYS_ENV = "API_KEYS"
 
@@ -36,6 +40,9 @@ LIMIT_TRIAGE_FINAL = "30/minute"
 LIMIT_TRIAGE_PHOTO = "10/minute"
 LIMIT_SPORT_PLAN = "30/minute"
 LIMIT_CONDITIONS = "60/minute"
+# TASK-012 release: photo lifecycle reads/writes.
+LIMIT_PHOTO_GET = "60/minute"
+LIMIT_PHOTO_DELETE = "30/minute"
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
@@ -65,3 +72,30 @@ def requires_auth(path: str, method: str = "") -> bool:
     if not path.startswith("/api/"):
         return False
     return path != "/api/health"
+
+
+# --- TASK-012 release: security response headers ---------------------------
+# Applied as middleware in app.main (covers API, static, errors).
+# CSP allows 'unsafe-inline' for script/style on purpose: index.html ships
+# inline <style> + inline <script> (no external JS). A stricter
+# script-src 'self' would break the UI — verified by the release smoke test
+# (GET / renders 200 and contains no CDN script tag).
+SECURITY_HEADERS: dict[str, str] = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Content-Security-Policy": (
+        "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; "
+        "img-src 'self' data: blob:; "
+        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "connect-src 'self'; object-src 'none'"
+    ),
+}
+
+
+def set_security_headers(response: _TResp) -> _TResp:
+    """Attach hardening headers to any Starlette response (idempotent)."""
+    for key, value in SECURITY_HEADERS.items():
+        response.headers[key] = value
+    return response

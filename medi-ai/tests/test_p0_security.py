@@ -264,7 +264,13 @@ def test_no_key_401_when_enforced(monkeypatch):
 def test_health_stays_open_and_key_allows_access(monkeypatch):
     _enable_auth(monkeypatch)
     assert client.get("/api/health").status_code == 200
-    assert client.get("/api/health").json() == {"status": "ok", "service": "medi-ai"}
+    # TASK-012: health is extended with version/rules_version (superset check).
+    body = client.get("/api/health").json()
+    assert body["status"] == "ok" and body["service"] == "medi-ai"
+    assert body["version"] == "1.0.0"
+    from app.domain.rules import RULES_VERSION
+
+    assert body["rules_version"] == RULES_VERSION
     r = client.post("/api/triage/initial", json=_initial_payload(), headers=_auth())
     assert r.status_code == 200, r.text
     # unenforced (no env): open without a key
