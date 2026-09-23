@@ -6,6 +6,8 @@
  * (including JS-toggled classes: bg-green-600, bg-yellow-500, bg-orange-600,
  * bg-slate-600, text-emerald-700). Static skeleton shimmer uses animate-pulse.
  * Source palette: tailwindcss v3.4.16 (values copied, no build step needed).
+ * TASK-013 arena-minimal pass: single-column layout (max-w-3xl), quiet type
+ * (text-base, tracking-tight). No new colors, no CDN — offline parity kept.
  */
 *,::before,::after{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e2e8f0}
 html{line-height:1.5;-webkit-text-size-adjust:100%;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
@@ -31,6 +33,8 @@ img,svg{display:block;vertical-align:middle}
 .items-center{align-items:center}
 .items-end{align-items:flex-end}
 .items-start{align-items:flex-start}
+.self-start{align-self:flex-start}
+.self-end{align-self:flex-end}
 .justify-between{justify-content:space-between}
 .gap-1{gap:.25rem}
 .gap-1\.5,.gap-1\.5{gap:.375rem}
@@ -57,6 +61,7 @@ img,svg{display:block;vertical-align:middle}
 .h-fit{height:fit-content}
 .h-full{height:100%}
 .max-w-7xl{max-width:80rem}
+.max-w-3xl{max-width:48rem}
 .max-w-\[85\%\]{max-width:85%}
 .max-h-\[420px\]{max-height:420px}
 .min-w-0{min-width:0}
@@ -75,6 +80,7 @@ img,svg{display:block;vertical-align:middle}
 .mb-3{margin-bottom:.75rem}
 .mb-4{margin-bottom:1rem}
 .p-2{padding:.5rem}
+.p-2\.5{padding:.625rem}
 .p-3{padding:.75rem}
 .p-5{padding:1.25rem}
 .px-1\.5{padding-left:.375rem;padding-right:.375rem}
@@ -93,8 +99,10 @@ img,svg{display:block;vertical-align:middle}
 .pt-4{padding-top:1rem}
 .pb-6{padding-bottom:1.5rem}
 .pl-2{padding-left:.5rem}
+.pr-1{padding-right:.25rem}
 .text-xs{font-size:.75rem;line-height:1rem}
 .text-sm{font-size:.875rem;line-height:1.25rem}
+.text-base{font-size:1rem;line-height:1.5rem}
 .text-lg{font-size:1.125rem;line-height:1.75rem}
 .text-xl{font-size:1.25rem;line-height:1.75rem}
 .text-2xl{font-size:1.5rem;line-height:2rem}
@@ -106,6 +114,7 @@ img,svg{display:block;vertical-align:middle}
 .font-extrabold{font-weight:800}
 .font-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
 .leading-none{line-height:1}
+.tracking-tight{letter-spacing:-.025em}
 .text-left{text-align:left}
 .capitalize{text-transform:capitalize}
 .underline{text-decoration:underline}
