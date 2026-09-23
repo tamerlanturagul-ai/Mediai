@@ -2,18 +2,13 @@
 from __future__ import annotations
 
 import os
-import sys
-from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
-from pydantic import ValidationError
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from app.main import _resolve_lang, app
 from app.schemas import TriageAnswer, TriageFinalRequest, TriageInitialRequest
 from app.triage_engine import generate_initial_questions, normalize_zone
+from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 
 def _initial(zone="chest", lang="ru"):

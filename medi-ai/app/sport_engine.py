@@ -4,7 +4,6 @@ from __future__ import annotations
 from .schemas import SportPlanRequest
 from .triage_engine import bmi_category, calc_bmi
 
-
 _ACTIVITY_FACTOR = {
     "sedentary": 1.2,
     "light": 1.375,

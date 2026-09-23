@@ -14,7 +14,10 @@ Intentional contract changes vs TASK-002 baseline:
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Tuple
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # schemas import is typing-only: keeps domain runtime-decoupled
+    from ..schemas import ProbableCondition
 
 # TASK-004: honest outputs — rules version exposed to client via score_breakdown.
 RULES_VERSION = "1.1"
@@ -140,13 +143,13 @@ def normalize_answer(answer: str) -> str:
         return "unsure"
     if a in ("да", "yes", "есть", "имеется", "наблюдается", "иә", "бар", "болады"):
         return "yes"
-    if a.startswith("да") or a.startswith("yes") or a.startswith("иә"):
+    if a.startswith(("да", "yes", "иә")):
         if "нет" in a or re.search(r"\bno\b", a):
             raise ValueError(f"Неоднозначный ответ '{answer}': ожидается yes/no/unsure")
         return "yes"
     if a in ("нет", "no", "жоқ", "жок", "нету"):
         return "no"
-    if a.startswith("нет") or a.startswith("no") or a.startswith("жоқ") or a.startswith("жок"):
+    if a.startswith(("нет", "no", "жоқ", "жок")):
         if re.search(r"\byes\b", a) or "да" in a:
             raise ValueError(f"Неоднозначный ответ '{answer}': ожидается yes/no/unsure")
         return "no"
@@ -162,9 +165,7 @@ def _answer_is_positive(answer: str) -> bool:
     a = (answer or "").strip().lower()
     if a in ("да", "yes", "есть", "имеется", "наблюдается", "иә", "бар", "болады"):
         return True
-    if a.startswith("да") or a.startswith("yes") or a.startswith("иә"):
-        return True
-    return False
+    return a.startswith(("да", "yes", "иә"))
 
 
 def _answer_is_unsure(answer: str) -> bool:
@@ -220,7 +221,7 @@ def _kw_hit(kw: str, text_norm: str) -> bool:
         return _normalize_med_text(kw) in text_norm
 
 
-def _keyword_score(t: str) -> Tuple[float, List[str]]:
+def _keyword_score(t: str) -> tuple[float, list[str]]:
     """Эвристический скоринг по свободному тексту. Возвращает (баллы, флаги)."""
     score, flags, _ = _keyword_score_detailed(t)
     return score, flags
@@ -228,7 +229,7 @@ def _keyword_score(t: str) -> Tuple[float, List[str]]:
 
 # TASK-004: single source of truth for keyword weights (no retune).
 # (keywords, points, flag) — identical values to pre-004 _keyword_score.
-RED_SCORE_GROUPS: List[Tuple[List[str], float, str]] = [
+RED_SCORE_GROUPS: list[tuple[list[str], float, str]] = [
     (["боль за грудиной", "давит в груди", "жжет в груди", "отдаёт в руку", "холодный пот", "удушье", "нехватка воздуха",
       "chest pain", "pressing chest", "cold sweat", "shortness of breath", "төс артындағы ауырсыну", "суық тер", "ентігу"], 38, "кардиальный красный флаг"),
     (["перекос лица", "онемела рука", "нарушение речи", "инсульт", "fast", "face droop", "arm weakness", "stroke", "бет қисаюы"], 42, "неврологический красный флаг (FAST)"),
@@ -246,15 +247,15 @@ CHRONIC_POINTS = 6.0
 CHRONIC_FLAG = "отягощённый анамнез"
 
 
-def _keyword_score_detailed(t: str) -> Tuple[float, List[str], List[Dict[str, float | str]]]:
+def _keyword_score_detailed(t: str) -> tuple[float, list[str], list[dict[str, float | str]]]:
     """Same weights as _keyword_score + per-reason points for transparency.
 
     Returns (total, flags, breakdown) where breakdown is a list of
     {"reason": flag, "points": pts} in hit order. No new weights.
     """
     score = 0.0
-    flags: List[str] = []
-    breakdown: List[Dict[str, float | str]] = []
+    flags: list[str] = []
+    breakdown: list[dict[str, float | str]] = []
     tn = _normalize_med_text(t)
     for keywords, pts, flag in RED_SCORE_GROUPS:
         if any(_kw_hit(k, tn) for k in keywords):
@@ -275,7 +276,7 @@ def _keyword_score_detailed(t: str) -> Tuple[float, List[str], List[Dict[str, fl
 # Numeric probability stays in JSON for compat; human text uses bands only.
 # ---------------------------------------------------------------------------
 
-LIKELIHOOD_I18N: Dict[str, Dict[str, str]] = {
+LIKELIHOOD_I18N: dict[str, dict[str, str]] = {
     "ru": {"low": "низкая", "medium": "средняя", "high": "высокая"},
     "en": {"low": "low", "medium": "medium", "high": "high"},
     "kz": {"low": "төмен", "medium": "орташа", "high": "жоғары"},
@@ -314,7 +315,7 @@ _ABDOMEN_SURGICAL_SIGNALS = [
 ]
 
 
-def _surgery_suspected(zone: str, t: str, probable) -> bool:
+def _surgery_suspected(zone: str, t: str, probable: list[ProbableCondition]) -> bool:
     tn = _normalize_med_text(t)
     if zone == "abdomen" and any(_kw_hit(k, tn) for k in _ABDOMEN_SURGICAL_SIGNALS):
         return True
@@ -322,12 +323,10 @@ def _surgery_suspected(zone: str, t: str, probable) -> bool:
     if "K35" in icds or "K56" in icds:
         return True
     # GI-bleed in ANY zone → strict fasting (zone-independent).
-    if any(_kw_hit(k, tn) for k in _GI_BLEED_SIGNALS):
-        return True
-    return False
+    return any(_kw_hit(k, tn) for k in _GI_BLEED_SIGNALS)
 
 
-def _gi_diabetes_obesity_context(t: str, probable, bmi: float) -> bool:
+def _gi_diabetes_obesity_context(t: str, probable: list[ProbableCondition], bmi: float) -> bool:
     tn = _normalize_med_text(t)
     icds = " ".join(p.icd10 for p in probable)
     gi_markers = ["K21", "K25", "K29", "K59", "E11", "E66", "K80"]
@@ -336,6 +335,4 @@ def _gi_diabetes_obesity_context(t: str, probable, bmi: float) -> bool:
     if bmi >= 30:
         return True
     # TASK-003: migrated from `k in t` substring to _kw_hit.
-    if any(_kw_hit(k, tn) for k in ["изжога", "гастрит", "язва", "диабет", "жажда", "ожирение", "понос", "запор", "вздутие"]):
-        return True
-    return False
+    return any(_kw_hit(k, tn) for k in ["изжога", "гастрит", "язва", "диабет", "жажда", "ожирение", "понос", "запор", "вздутие"])

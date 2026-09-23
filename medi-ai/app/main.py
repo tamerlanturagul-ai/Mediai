@@ -200,7 +200,7 @@ def _read_upload_capped(file: UploadFile) -> bytes:
 
 @app.post("/api/triage/photo", response_model=PhotoUploadResponse)
 @limiter.limit(LIMIT_TRIAGE_PHOTO)
-def triage_photo(request: Request, file: UploadFile = File(...)) -> PhotoUploadResponse:
+def triage_photo(request: Request, file: UploadFile = File(...)) -> PhotoUploadResponse:  # noqa: B008  # FastAPI idiom: File(...) is a marker consumed by FastAPI, never called at runtime
     """Store a photo envelope for the doctor (TASK-008, B4-variant-1).
 
     Accepts jpeg/png/webp up to 8 MB. Returns {photo_id, quality, hint}.

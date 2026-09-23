@@ -14,17 +14,13 @@
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from app.main import app
 from app.schemas import TriageInitialRequest
 from app.triage_engine import normalize_zone
+from fastapi.testclient import TestClient
 
 INDEX_HTML = Path(__file__).resolve().parents[1] / "app" / "static" / "index.html"
 

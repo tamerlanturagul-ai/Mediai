@@ -2,17 +2,13 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from app.domain.rules import RULES_VERSION, likelihood_band, likelihood_label
 from app.main import app
 from app.schemas import TriageAnswer, TriageFinalRequest
+from fastapi.testclient import TestClient
 
 
 def _final(zone="chest", text="боль и дискомфорт", answers=("no", "no", "no"), lang="ru",

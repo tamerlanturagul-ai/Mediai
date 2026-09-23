@@ -15,16 +15,9 @@ from __future__ import annotations
 
 import io
 import logging
-import sys
 import uuid
-from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
-from PIL import Image, ImageDraw
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from app.main import (
     GENERIC_AUTH_ERROR,
     GENERIC_RATE_LIMIT_ERROR,
@@ -42,6 +35,8 @@ from app.services.photo_service import (
     PhotoUploadError,
     get_photo_info,
 )
+from fastapi.testclient import TestClient
+from PIL import Image, ImageDraw
 
 client = TestClient(app)
 
@@ -130,7 +125,7 @@ def test_422_body_is_generic():
 
 
 def test_500_body_is_generic_and_logged(monkeypatch, caplog):
-    def boom(req):  # noqa: ARG001
+    def boom(req):
         raise RuntimeError("SECRET-LEAK-MARKER explodes in app/triage_engine.py:999")
 
     monkeypatch.setattr("app.main.evaluate_final", boom)
@@ -147,7 +142,7 @@ def test_500_body_is_generic_and_logged(monkeypatch, caplog):
 
 
 def test_sport_500_body_is_generic(monkeypatch):
-    def boom(req):  # noqa: ARG001
+    def boom(req):
         raise RuntimeError("SECRET-LEAK-MARKER explodes in app/sport_engine.py:999")
 
     monkeypatch.setattr("app.main.build_sport_plan", boom)
