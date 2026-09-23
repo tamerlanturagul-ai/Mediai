@@ -288,23 +288,15 @@
 | B6 | No dark mode | Explicitly out of scope for this task. |
 | B7 | Hero art is a functional 3-step panel, not an illustration | Avoids stock imagery; keeps the page offline and fast. |
 
-## 8. Responsive proof (committed shots, real browser, real runs)
+## 8. Responsive proof (shots removed from repo, verified by probes)
 
 Run against the live app (`uvicorn app.main:app`) with Chrome via Playwright,
 `deviceScaleFactor:2` on mobile. Console errors, page errors and failed requests were
 recorded per phase — **0 errors in all 7 phases**.
 
-| File | Viewport | Content |
-|---|---|---|
-| `shot024_1440_top_ru.png` | 1440×900 | hero + rail + both cards above the fold |
-| `shot024_1440_result_ru.png` | 1440 | `#result` element, **RED / score 95** run |
-| `shot024_1440_ru_full.png` | 1440 | full page, RU, after the run |
-| `shot024_1440_en_full.png` | 1440 | full page, EN chrome (same run) |
-| `shot024_1440_kz_full.png` | 1440 | full page, KZ chrome (same run) |
-| `shot024_390_top_ru.png` | 390×844 | mobile header (2 rows) + hero |
-| `shot024_390_result_ru.png` | 390 | `#result` element on mobile |
-| `shot024_390_ru_full.png` | 390 | full page, RU |
-| `shot024_360_top_ru.png` | 360×780 | narrowest supported width |
+> Proof screenshots (`shot024_*`: 1440 top/result/full RU+EN+KZ, 390 top/result/full,
+> 360 top) were verified during the rework and then removed from the repo to keep it
+> light. Re-generate via Playwright against the live app if needed.
 
 Overflow probes: `scrollWidth === clientWidth` at **390px** and at **360px**.
 
