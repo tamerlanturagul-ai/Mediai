@@ -1,6 +1,7 @@
 """Сервер FastAPI MediAI: роуты, статика, CORS."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -28,13 +29,34 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 INDEX_HTML = STATIC_DIR / "index.html"
 
+
+def _cors_origins() -> list[str]:
+    """Whitelist from CORS_ORIGINS env (comma-separated). No '*' default."""
+    raw = os.getenv("CORS_ORIGINS", "")
+    if not raw.strip():
+        return ["http://localhost:8000", "http://127.0.0.1:8000"]
+    return [o.strip() for o in raw.split(",") if o.strip()]
+
+
+def _resolve_lang(lang: str | None) -> str:
+    """Single lang helper for all triage routes: fallback to 'ru'.
+
+    Contract (documented in README): unknown/empty lang -> 'ru'
+    (no 422, backward-compatible). Used identically in
+    /api/conditions, /api/triage/initial, /api/triage/final.
+    """
+    l = (lang or "ru").lower()
+    return l if l in ("ru", "en", "kz") else "ru"
+
+
 app = FastAPI(title="MediAI — первичный клинический триаж", version="1.0.0")
 
-# CORS для бесперебойной работы фронтенда
+# CORS: whitelist only; never '*' + credentials (browsers reject it).
+_CORS_ORIGINS = _cors_origins()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_CORS_ORIGINS,
+    allow_credentials=("*" not in _CORS_ORIGINS),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -55,8 +77,9 @@ def health() -> dict:
 
 
 @app.get("/api/conditions", response_model=ConditionsResponse)
-def list_conditions() -> ConditionsResponse:
-    catalog = get_conditions_catalog()
+def list_conditions(lang: str = "ru") -> ConditionsResponse:
+    lang = _resolve_lang(lang)
+    catalog = get_conditions_catalog(lang)
     return ConditionsResponse(categories=catalog)
 
 
@@ -66,7 +89,8 @@ def triage_initial(req: TriageInitialRequest) -> TriageInitialResponse:
     # Гарантия контракта: ровно 3 вопроса
     if len(questions) != 3:
         raise HTTPException(status_code=500, detail="Движок вернул не 3 вопроса")
-    return TriageInitialResponse(questions=questions)
+    lang = _resolve_lang(getattr(req, "lang", "ru"))
+    return TriageInitialResponse(questions=questions, lang=lang)  # type: ignore[arg-type]
 
 
 @app.post("/api/triage/final", response_model=TriageFinalResponse)
@@ -75,6 +99,7 @@ def triage_final(req: TriageFinalRequest) -> TriageFinalResponse:
         result = evaluate_final(req)
     except Exception as exc:  # fail-safe с понятным сообщением
         raise HTTPException(status_code=422, detail=f"Ошибка оценки триажа: {exc}") from exc
+    lang = _resolve_lang(getattr(req, "lang", "ru"))
     return TriageFinalResponse(
         bmi=result["bmi"],
         bmi_category=result["bmi_category"],
@@ -87,6 +112,7 @@ def triage_final(req: TriageFinalRequest) -> TriageFinalResponse:
         emergency_call=result["emergency_call"],
         forbidden_actions=result["forbidden_actions"],
         evidence_sources=result["evidence_sources"],
+        lang=lang,  # type: ignore[arg-type]
     )
 
 
