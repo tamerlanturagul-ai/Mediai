@@ -1,8 +1,10 @@
 """Question banks 6 zones x 3 langs (extracted from triage_engine, TASK-003)."""
 from __future__ import annotations
 
+from ..i18n import resolve_lang
 from ..schemas import TriageInitialRequest, TriageQuestion
-from .rules import _kw_hit, _norm_lang, _normalize_med_text, normalize_zone
+from ..services.triage_service import _text
+from .rules import _kw_hit, _normalize_med_text, normalize_zone
 
 _QUESTION_BANK_RU: dict[str, list[tuple[str, str, str]]] = {
     "chest": [
@@ -168,7 +170,7 @@ _OPTIONS_I18N = {
 
 def generate_initial_questions(req: TriageInitialRequest) -> list[TriageQuestion]:
     """Вернуть ровно 3 клинических уточняющих вопроса на языке req.lang."""
-    lang = _norm_lang(getattr(req, "lang", "ru"))
+    lang = resolve_lang(getattr(req, "lang", "ru"))
     zone = normalize_zone(req.body_zone)
     # Эвристика: если текст явно указывает на другую зону — корректируем.
     t = _text(req)
@@ -187,9 +189,4 @@ def generate_initial_questions(req: TriageInitialRequest) -> list[TriageQuestion
         TriageQuestion(id=qid, text=text, reason=reason, options=list(options))
         for (qid, text, reason) in bank[:3]
     ]
-
-
-def _text(req: TriageInitialRequest) -> str:
-    parts = [req.body_zone or "", req.symptoms_text or "", " ".join(req.tags or [])]
-    return " ".join(parts).lower()
 

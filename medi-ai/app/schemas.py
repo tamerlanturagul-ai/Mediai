@@ -1,11 +1,13 @@
 """Pydantic-модели валидации MediAI."""
 from __future__ import annotations
 
-import re
 import uuid
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, field_validator
+
+from .i18n import normalize_answer as _canonical_normalize_answer
+from .i18n import resolve_lang
 
 Sex = Literal["male", "female", "other"]
 TriageLevel = Literal["GREEN", "YELLOW", "ORANGE", "RED"]
@@ -18,47 +20,22 @@ AnswerLiteral = Literal["yes", "no", "unsure"]
 def map_localized_answer(v: str) -> str:
     """Map RU/EN/KZ free-text answer to canonical yes/no/unsure.
 
+    Thin delegate of app.i18n.normalize_answer (kept for backward compat).
     Accepted (case-insensitive):
     - yes: да, yes, иә, есть/имеется/наблюдается, бар/болады (+ "да, ..." / "yes, ..." continuations)
     - no: нет, no, жоқ/жок
     - unsure: не уверен(а)/не знаю, not sure, сенімді емес(пін), unsure
     Ambiguous ("да нет") and other free text raise ValueError (contract: Literal only).
     """
-    a = (v or "").strip().lower()
-    if a in ("yes", "no", "unsure"):
-        return a
-    if any(k in a for k in ("не уверен", "не знаю", "not sure", "сенімді емес", "unsure")):
-        return "unsure"
-    if a in ("да", "yes", "есть", "имеется", "наблюдается", "иә", "бар", "болады"):
-        return "yes"
-    # "да, ..." / "yes, ..." continuations are yes, but "да нет" (both markers) is ambiguous -> reject.
-    if a.startswith(("да", "yes", "иә")):
-        if "нет" in a or re.search(r"\bno\b", a):
-            raise ValueError(
-                f"Неоднозначный ответ '{v}': ожидается yes/no/unsure "
-                "(или Да/Нет/Не уверен(а), Yes/No/Not sure, Иә/Жоқ/Сенімді емеспін)"
-            )
-        return "yes"
-    if a in ("нет", "no", "жоқ", "жок", "нету"):
-        return "no"
-    if a.startswith(("нет", "no", "жоқ", "жок")):
-        # "no ..." with embedded "yes"/"да" is ambiguous
-        if re.search(r"\byes\b", a) or "да" in a:
-            raise ValueError(
-                f"Неоднозначный ответ '{v}': ожидается yes/no/unsure "
-                "(или Да/Нет/Не уверен(а), Yes/No/Not sure, Иә/Жоқ/Сенімді емеспін)"
-            )
-        return "no"
-    raise ValueError(
-        f"Неизвестный ответ '{v}': ожидается yes/no/unsure "
-        "(или Да/Нет/Не уверен(а), Yes/No/Not sure, Иә/Жоқ/Сенімді емеспін)"
-    )
+    return _canonical_normalize_answer(v)
 
 
 def map_lang(v: str | None) -> str:
-    """Single lang coercion: unknown/empty -> 'ru' (fallback, TASK-003 contract)."""
-    l = (v or "ru").strip().lower()
-    return l if l in ("ru", "en", "kz") else "ru"
+    """Single lang coercion: unknown/empty -> 'ru' (fallback, TASK-003 contract).
+
+    Thin delegate of app.i18n.resolve_lang (kept for backward compat).
+    """
+    return resolve_lang(v)
 
 
 class HealthProfile(BaseModel):

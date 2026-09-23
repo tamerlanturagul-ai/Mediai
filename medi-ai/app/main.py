@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 
+from .i18n import resolve_lang
 from .schemas import (
     ConditionsResponse,
     PhotoAttachment,
@@ -82,12 +83,12 @@ def _cors_origins() -> list[str]:
 def _resolve_lang(lang: str | None) -> str:
     """Single lang helper for all triage routes: fallback to 'ru'.
 
+    Thin delegate of app.i18n.resolve_lang (kept for backward compat).
     Contract (documented in README): unknown/empty lang -> 'ru'
     (no 422, backward-compatible). Used identically in
     /api/conditions, /api/triage/initial, /api/triage/final.
     """
-    l = (lang or "ru").lower()
-    return l if l in ("ru", "en", "kz") else "ru"
+    return resolve_lang(lang)
 
 
 app = FastAPI(title="MediAI — первичный клинический триаж", version="1.0.0")
