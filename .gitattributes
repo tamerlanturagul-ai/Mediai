@@ -1,0 +1,4 @@
+# Freeze golden fixtures byte-for-byte: no CRLF/LF conversion on checkout.
+# (test_golden_sha_unchanged hashes LF-canonical bytes; this keeps the
+# committed blob identical on every OS.)
+medi-ai/tests/*.json -text

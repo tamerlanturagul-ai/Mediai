@@ -232,8 +232,11 @@ def test_security_headers_present_everywhere(api_client):
 
 def test_golden_sha_unchanged():
     golden = Path(__file__).resolve().parent / "golden_before.json"
-    sha = hashlib.sha256(golden.read_bytes()).hexdigest()
-    assert sha == "30794ca236644dd2d4eb093d37a65c06ccf1ba35c76910573925f4e327df2098"
+    # Normalize CRLF->LF: Windows checkouts convert text files, CI (Linux) does
+    # not. The sha must be line-ending independent (LF canonical).
+    raw = golden.read_bytes().replace(b"\r\n", b"\n")
+    sha = hashlib.sha256(raw).hexdigest()
+    assert sha == "09aeaf0a56eb318ff3dbc767d43a1b10aed2e782bd4d3c8a2dbf52e59fb9fec2"
     assert len(json.loads(golden.read_text(encoding="utf-8"))) == 10
 
 
