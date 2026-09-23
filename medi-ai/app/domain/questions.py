@@ -1,13 +1,10 @@
 """Question banks 6 zones x 3 langs (extracted from triage_engine, TASK-003)."""
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
-
 from ..schemas import TriageInitialRequest, TriageQuestion
 from .rules import _kw_hit, _norm_lang, _normalize_med_text, normalize_zone
 
-
-_QUESTION_BANK_RU: Dict[str, List[Tuple[str, str, str]]] = {
+_QUESTION_BANK_RU: dict[str, list[tuple[str, str, str]]] = {
     "chest": [
         ("chest_pressing", "Боль за грудиной давящая, сжимающая или жгучая, длится более 5–15 минут?",
          "Исключение острого коронарного синдрома (I20–I21)"),
@@ -58,7 +55,7 @@ _QUESTION_BANK_RU: Dict[str, List[Tuple[str, str, str]]] = {
     ],
 }
 
-_QUESTION_BANK_EN: Dict[str, List[Tuple[str, str, str]]] = {
+_QUESTION_BANK_EN: dict[str, list[tuple[str, str, str]]] = {
     "chest": [
         ("chest_pressing", "Is the chest pain pressing, squeezing or burning and lasting more than 5–15 minutes?",
          "Rule out acute coronary syndrome (I20–I21)"),
@@ -109,7 +106,7 @@ _QUESTION_BANK_EN: Dict[str, List[Tuple[str, str, str]]] = {
     ],
 }
 
-_QUESTION_BANK_KZ: Dict[str, List[Tuple[str, str, str]]] = {
+_QUESTION_BANK_KZ: dict[str, list[tuple[str, str, str]]] = {
     "chest": [
         ("chest_pressing", "Төс артындағы ауырсыну қысатын, жаншитын немесе күйдіретін, 5–15 минуттан ұзақ па?",
          "Жедел коронарлық синдромды жоққа шығару (I20–I21)"),
@@ -169,7 +166,7 @@ _OPTIONS_I18N = {
 }
 
 
-def generate_initial_questions(req: TriageInitialRequest) -> List[TriageQuestion]:
+def generate_initial_questions(req: TriageInitialRequest) -> list[TriageQuestion]:
     """Вернуть ровно 3 клинических уточняющих вопроса на языке req.lang."""
     lang = _norm_lang(getattr(req, "lang", "ru"))
     zone = normalize_zone(req.body_zone)

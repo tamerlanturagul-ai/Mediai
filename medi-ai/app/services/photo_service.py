@@ -30,7 +30,7 @@ import io
 import uuid
 import warnings
 from pathlib import Path
-from typing import Dict, Literal, Optional, Tuple
+from typing import Literal
 
 from PIL import Image, ImageChops, ImageFilter
 from PIL.Image import DecompressionBombError, DecompressionBombWarning
@@ -55,7 +55,7 @@ _FORMAT_TO_EXT = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp"}
 MEAN_BRIGHTNESS_DARK_BELOW = 40.0
 BLUR_VARIANCE_SHARP_ABOVE = 50.0
 
-HINTS: Dict[str, str] = {
+HINTS: dict[str, str] = {
     "ok": "Качество достаточное для врача.",
     "too_dark": "Фото слишком тёмное — переснимите при хорошем освещении.",
     "too_blurry": "Фото размыто — держите камеру неподвижно и переснимите.",
@@ -65,10 +65,10 @@ HINTS: Dict[str, str] = {
 
 # In-memory cache photo_id -> quality (source of truth for quality;
 # files on disk are the source of truth for existence).
-_META: Dict[str, Dict[str, str]] = {}
+_META: dict[str, dict[str, str]] = {}
 
 
-def _hist_mean_var(hist: list[int]) -> Tuple[float, float]:
+def _hist_mean_var(hist: list[int]) -> tuple[float, float]:
     total = sum(hist)
     if not total:
         return 0.0, 0.0
@@ -77,7 +77,7 @@ def _hist_mean_var(hist: list[int]) -> Tuple[float, float]:
     return mean, max(0.0, ex2 - mean * mean)
 
 
-def assess_quality(img: Image.Image) -> Tuple[PhotoQuality, float, float]:
+def assess_quality(img: Image.Image) -> tuple[PhotoQuality, float, float]:
     """Heuristic capture quality. Returns (quality, brightness, blur_var)."""
     gray = img.convert("L")
     brightness, _ = _hist_mean_var(gray.histogram())
@@ -111,7 +111,7 @@ def photo_exists(photo_id: str) -> bool:
     return False
 
 
-def get_photo_info(photo_id: str) -> Optional[Dict[str, str]]:
+def get_photo_info(photo_id: str) -> dict[str, str] | None:
     """Return {photo_id, quality} for a stored photo, or None if unknown."""
     if not photo_exists(photo_id):
         return None
@@ -125,7 +125,7 @@ def get_photo_info(photo_id: str) -> Optional[Dict[str, str]]:
                 with Image.open(path) as img:
                     img.load()
                     quality, _, _ = assess_quality(img)
-            except Exception:
+            except Exception:  # noqa: BLE001  # any Pillow decode failure must degrade to quality="unknown", never crash triage
                 # TASK-009 P0: a corrupt/unreadable stored file must NEVER
                 # report a silent "ok" — quality is honestly "unknown".
                 quality = "unknown"
@@ -140,7 +140,7 @@ class PhotoUploadError(Exception):
         self.status_code = status_code
 
 
-def save_photo(data: bytes, content_type: str | None, filename: str | None) -> Dict[str, str]:
+def save_photo(data: bytes, content_type: str | None, filename: str | None) -> dict[str, str]:
     """Validate, store and assess an uploaded image.
 
     Raises PhotoUploadError with status_code 413 (oversize), 400 (wrong

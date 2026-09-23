@@ -1,7 +1,7 @@
 """Triage service: evaluate_final + builders (extracted from triage_engine, TASK-003)."""
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import Any
 
 from ..domain.rules import (
     RULES_VERSION,
@@ -33,7 +33,7 @@ def _text(req: TriageInitialRequest | TriageFinalRequest) -> str:
     return " ".join(parts).lower()
 
 
-def evaluate_final(req: TriageFinalRequest) -> dict:
+def evaluate_final(req: TriageFinalRequest) -> dict[str, Any]:
     t = _text(req)
     lang = _norm_lang(getattr(req, "lang", "ru"))
     zone = normalize_zone(req.body_zone)
@@ -42,8 +42,8 @@ def evaluate_final(req: TriageFinalRequest) -> dict:
 
     # --- базовый скоринг ---
     score = 0.0
-    reasons: List[str] = []
-    breakdown: List[dict] = []
+    reasons: list[str] = []
+    breakdown: list[dict[str, Any]] = []
 
     kw_score, kw_flags, kw_breakdown = _keyword_score_detailed(t)
     score += kw_score
@@ -112,10 +112,10 @@ def evaluate_final(req: TriageFinalRequest) -> dict:
 
 def _build_probable_conditions(
     zone: str, t: str, req: TriageFinalRequest, positives: int, bmi: float, lang: str = "ru"
-) -> List[ProbableCondition]:
+) -> list[ProbableCondition]:
     l = _norm_lang(lang)
     tn = _normalize_med_text(t)
-    cands: List[ProbableCondition] = []
+    cands: list[ProbableCondition] = []
 
     def add(name: str, icd10: str, prob: float, reason: str) -> None:
         cands.append(ProbableCondition(
@@ -259,7 +259,7 @@ def _build_probable_conditions(
     return cands[:3]
 
 def _build_diet(
-    zone: str, t: str, probable: List[ProbableCondition], requested: bool, bmi: float, lang: str = "ru"
+    zone: str, t: str, probable: list[ProbableCondition], requested: bool, bmi: float, lang: str = "ru"
 ) -> DietInfo:
     l = _norm_lang(lang)
     tn = _normalize_med_text(t)
@@ -394,8 +394,8 @@ def _build_diet(
     )
 
 def _build_actions(
-    level: str, zone: str, probable: List[ProbableCondition], t: str, lang: str = "ru"
-) -> Tuple[List[str], str, bool, List[str]]:
+    level: str, zone: str, probable: list[ProbableCondition], t: str, lang: str = "ru"
+) -> tuple[list[str], str, bool, list[str]]:
     l = _norm_lang(lang)
     top = probable[0] if probable else None
     if l == "en":
@@ -428,7 +428,7 @@ def _build_actions(
     see_doctor = doctor_map.get(zone, doctor_map["general"])
     emergency = level in ("ORANGE", "RED")
 
-    actions: List[str] = []
+    actions: list[str] = []
     if l == "en":
         if level == "RED":
             actions += [
@@ -555,11 +555,11 @@ def _build_actions(
 
     return actions, see_doctor, emergency, forbidden
 
-def _build_evidence(zone: str, probable: List[ProbableCondition], lang: str = "ru") -> List[EvidenceSource]:
+def _build_evidence(zone: str, probable: list[ProbableCondition], lang: str = "ru") -> list[EvidenceSource]:
     l = _norm_lang(lang)
     who_title = {"ru": "ВОЗ — рекомендации по первичной помощи", "en": "WHO — primary care recommendations", "kz": "ДДҰ — алғашқы көмек ұсынымдары"}[l]
     heart_title = {"ru": "PubMed — HEART score для боли в груди (ID: 32979527)", "en": "PubMed — HEART score for chest pain (ID: 32979527)", "kz": "PubMed — кеуде ауырсынуына HEART шкаласы (ID: 32979527)"}[l]
-    base: List[EvidenceSource] = [
+    base: list[EvidenceSource] = [
         EvidenceSource(title=who_title,
                        url="https://www.who.int/publications", type="WHO"),
         EvidenceSource(title=heart_title,

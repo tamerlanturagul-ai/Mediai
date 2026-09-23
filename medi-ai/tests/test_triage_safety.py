@@ -1,13 +1,7 @@
 """Safety tests for TASK-002: scoring word-boundaries + fasting in any zone."""
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from app.schemas import TriageAnswer, TriageFinalRequest, TriageInitialRequest
 from app.triage_engine import (
     _keyword_score,
@@ -136,9 +130,9 @@ def test_fast_standalone_is_stroke():
 
 # 6. 139/9 != severity (39 only standalone / температура 39|40, 38.5).
 def test_bp_139_9_not_severity():
-    score, flags = _keyword_score("давление 139/9, немного болит голова")
+    _score, flags = _keyword_score("давление 139/9, немного болит голова")
     assert "системная тяжесть" not in flags
-    score2, flags2 = _keyword_score("BP 139/9 headache")
+    _score2, flags2 = _keyword_score("BP 139/9 headache")
     assert "системная тяжесть" not in flags2
 
 
@@ -149,5 +143,5 @@ def test_temperature_39_is_severity():
 
 
 def test_temperature_38_5_is_severity():
-    score, flags = _keyword_score("температура 38.5 держится второй день")
+    _score, flags = _keyword_score("температура 38.5 держится второй день")
     assert "системная тяжесть" in flags

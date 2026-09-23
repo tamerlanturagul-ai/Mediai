@@ -2,14 +2,8 @@
 from __future__ import annotations
 
 import re
-import sys
-from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from app.main import app
 from app.schemas import SportPlanRequest
 from app.sport_engine import (
@@ -20,6 +14,7 @@ from app.sport_engine import (
     build_sport_plan,
     parq_positive,
 )
+from fastapi.testclient import TestClient
 
 LANGS = ["ru", "en", "kz"]
 
@@ -53,8 +48,8 @@ PARQ_BOOL_FLAGS = [
 
 
 def _req(weight_kg=70.0, lang="ru", goal="lose", **kw):
-    base = dict(age=30, sex="male", height_cm=170.0, weight_kg=weight_kg,
-                goal=goal, activity_level="light", lang=lang)
+    base = {"age": 30, "sex": "male", "height_cm": 170.0, "weight_kg": weight_kg,
+            "goal": goal, "activity_level": "light", "lang": lang}
     base.update(kw)
     return SportPlanRequest(**base)
 
@@ -181,7 +176,7 @@ def test_numeric_parity_across_langs(goal):
     plans = {lang: build_sport_plan(_req(70.0, lang, goal)) for lang in LANGS}
     for lang in ("en", "kz"):
         for key in ("bmi", "bmr_kcal", "tdee_kcal", "target_kcal", "timeline_weeks"):
-            assert plans[lang][key] == plans["ru"][key] == plans["ru"][key]
+            assert plans[lang][key] == plans["ru"][key], f"{key}: {lang} != ru"
     for lang in LANGS:
         assert plans[lang]["training_plan"] and plans[lang]["nutrition_hint"]
         assert _HONEST_MARKER[lang] in plans[lang]["timeline_text"]

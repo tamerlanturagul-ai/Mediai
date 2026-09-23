@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import re
 import uuid
-from typing import Annotated, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field, field_validator
+from typing import Annotated, Literal
 
+from pydantic import BaseModel, Field, field_validator
 
 Sex = Literal["male", "female", "other"]
 TriageLevel = Literal["GREEN", "YELLOW", "ORANGE", "RED"]
@@ -32,7 +32,7 @@ def map_localized_answer(v: str) -> str:
     if a in ("да", "yes", "есть", "имеется", "наблюдается", "иә", "бар", "болады"):
         return "yes"
     # "да, ..." / "yes, ..." continuations are yes, but "да нет" (both markers) is ambiguous -> reject.
-    if a.startswith("да") or a.startswith("yes") or a.startswith("иә"):
+    if a.startswith(("да", "yes", "иә")):
         if "нет" in a or re.search(r"\bno\b", a):
             raise ValueError(
                 f"Неоднозначный ответ '{v}': ожидается yes/no/unsure "
@@ -41,7 +41,7 @@ def map_localized_answer(v: str) -> str:
         return "yes"
     if a in ("нет", "no", "жоқ", "жок", "нету"):
         return "no"
-    if a.startswith("нет") or a.startswith("no") or a.startswith("жоқ") or a.startswith("жок"):
+    if a.startswith(("нет", "no", "жоқ", "жок")):
         # "no ..." with embedded "yes"/"да" is ambiguous
         if re.search(r"\byes\b", a) or "да" in a:
             raise ValueError(
@@ -76,7 +76,7 @@ class TriageInitialRequest(BaseModel):
     body_zone: str = Field(..., min_length=1, description="Зона тела: chest/abdomen/head/skin/limb и т.д.")
     # TASK-009 P0: bound free text (DoS-sized bodies -> 422, not worker OOM).
     symptoms_text: str = Field(..., min_length=3, max_length=4000, description="Свободный текст симптомов")
-    tags: List[Annotated[str, Field(max_length=64)]] = Field(default_factory=list, max_length=20)
+    tags: list[Annotated[str, Field(max_length=64)]] = Field(default_factory=list, max_length=20)
     request_diet: bool = False
     lang: Lang = Field(default="ru", description="Язык ответа: ru/en/kz")
 
@@ -89,12 +89,12 @@ class TriageInitialRequest(BaseModel):
 class TriageQuestion(BaseModel):
     id: str
     text: str
-    options: List[str] = Field(default_factory=lambda: ["Да", "Нет", "Не уверен(а)"])
+    options: list[str] = Field(default_factory=lambda: ["Да", "Нет", "Не уверен(а)"])
     reason: str = Field(default="", description="Зачем задан вопрос (исключаемое острое состояние)")
 
 
 class TriageInitialResponse(BaseModel):
-    questions: List[TriageQuestion] = Field(..., min_length=3, max_length=3)
+    questions: list[TriageQuestion] = Field(..., min_length=3, max_length=3)
     lang: Lang = Field(default="ru")
 
 
@@ -118,13 +118,13 @@ class TriageFinalRequest(BaseModel):
     body_zone: str = Field(..., min_length=1)
     # TASK-009 P0: same bounds as TriageInitialRequest (4000 chars, 20x64 tags).
     symptoms_text: str = Field(..., min_length=3, max_length=4000)
-    tags: List[Annotated[str, Field(max_length=64)]] = Field(default_factory=list, max_length=20)
+    tags: list[Annotated[str, Field(max_length=64)]] = Field(default_factory=list, max_length=20)
     request_diet: bool = False
-    answers: List[TriageAnswer] = Field(..., min_length=3, max_length=3)
+    answers: list[TriageAnswer] = Field(..., min_length=3, max_length=3)
     lang: Lang = Field(default="ru")
     # TASK-008: photo envelope for the doctor (B4-variant-1). Ids only —
     # images NEVER influence score/conditions/diet (see evaluate_final).
-    photo_ids: List[str] = Field(default_factory=list, max_length=3)
+    photo_ids: list[str] = Field(default_factory=list, max_length=3)
 
     @field_validator("lang", mode="before")
     @classmethod
@@ -169,10 +169,10 @@ class DietInfo(BaseModel):
     allowed: bool
     regime: str = ""
     reason: str = ""
-    recommended: List[str] = Field(default_factory=list)
-    forbidden: List[str] = Field(default_factory=list)
-    menu_example: List[str] = Field(default_factory=list)
-    warning: Optional[str] = None
+    recommended: list[str] = Field(default_factory=list)
+    forbidden: list[str] = Field(default_factory=list)
+    menu_example: list[str] = Field(default_factory=list)
+    warning: str | None = None
 
 
 class EvidenceSource(BaseModel):
@@ -191,20 +191,20 @@ class TriageFinalResponse(BaseModel):
     bmi_category: str
     risk_score: float = Field(..., ge=0, le=100)
     triage_level: TriageLevel
-    probable_conditions: List[ProbableCondition]
+    probable_conditions: list[ProbableCondition]
     diet: DietInfo
-    actions: List[str]
+    actions: list[str]
     see_doctor: str
     emergency_call: bool
-    forbidden_actions: List[str]
-    evidence_sources: List[EvidenceSource]
+    forbidden_actions: list[str]
+    evidence_sources: list[EvidenceSource]
     lang: Lang = Field(default="ru")
     # TASK-004: transparency — how the score was counted + rules version.
-    score_breakdown: List[ScoreBreakdownItem] = Field(default_factory=list)
+    score_breakdown: list[ScoreBreakdownItem] = Field(default_factory=list)
     rules_version: str = Field(default="1.1")
     # TASK-008: photos attached "for the doctor". Carried through only —
     # MUST NOT change score/conditions/diet (asserted in test_photo_upload.py).
-    photos_attached: List[PhotoAttachment] = Field(default_factory=list)
+    photos_attached: list[PhotoAttachment] = Field(default_factory=list)
 
 
 class ConditionItem(BaseModel):
@@ -215,7 +215,7 @@ class ConditionItem(BaseModel):
 
 
 class ConditionsResponse(BaseModel):
-    categories: Dict[str, List[ConditionItem]]
+    categories: dict[str, list[ConditionItem]]
 
 
 class SportPlanRequest(BaseModel):
@@ -225,7 +225,7 @@ class SportPlanRequest(BaseModel):
     weight_kg: float = Field(..., ge=30, le=250)
     goal: SportGoal = "lose"
     activity_level: ActivityLevel = "light"
-    contraindications: List[str] = Field(default_factory=list)
+    contraindications: list[str] = Field(default_factory=list)
     lang: Lang = Field(default="ru", description="Язык ответа: ru/en/kz")
     # TASK-007: PAR-Q screening (defaults = no positive answers).
     parq_chest_pain: bool = False
@@ -251,8 +251,8 @@ class SportPlanResponse(BaseModel):
     weekly_tempo_kg: str
     timeline_weeks: float
     timeline_text: str
-    training_plan: List[str]
-    nutrition_hint: List[str]
-    contraindications: List[str]
-    warnings: List[str]
+    training_plan: list[str]
+    nutrition_hint: list[str]
+    contraindications: list[str]
+    warnings: list[str]
     lang: Lang = Field(default="ru")

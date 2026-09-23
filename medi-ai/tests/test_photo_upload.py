@@ -8,18 +8,13 @@ from __future__ import annotations
 
 import io
 import os
-import sys
 import uuid
-from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
-from PIL import Image, ImageDraw, ImageFilter
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from app.main import app
 from app.services.photo_service import MAX_PHOTO_BYTES, UPLOAD_DIR
+from fastapi.testclient import TestClient
+from PIL import Image, ImageDraw, ImageFilter
 
 client = TestClient(app)
 

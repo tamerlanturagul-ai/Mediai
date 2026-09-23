@@ -1,13 +1,10 @@
 """Disease catalogs RU/EN/KZ (extracted from triage_engine, TASK-003)."""
 from __future__ import annotations
 
-from typing import Dict, List
-
 from ..schemas import ConditionItem
 from .rules import _norm_lang
 
-
-CONDITIONS_CATALOG_RU: Dict[str, List[ConditionItem]] = {
+CONDITIONS_CATALOG_RU: dict[str, list[ConditionItem]] = {
     "кардиология": [
         ConditionItem(name="Стенокардия", icd10="I20", category="кардиология",
                       urgency_hint="Загрудинная давящая боль — исключить ОКС, вызвать 103"),
@@ -64,7 +61,7 @@ CONDITIONS_CATALOG_RU: Dict[str, List[ConditionItem]] = {
     ],
 }
 
-CONDITIONS_CATALOG_EN: Dict[str, List[ConditionItem]] = {
+CONDITIONS_CATALOG_EN: dict[str, list[ConditionItem]] = {
     "cardiology": [
         ConditionItem(name="Angina pectoris", icd10="I20", category="cardiology",
                       urgency_hint="Pressing retrosternal pain — rule out ACS, call emergency"),
@@ -121,7 +118,7 @@ CONDITIONS_CATALOG_EN: Dict[str, List[ConditionItem]] = {
     ],
 }
 
-CONDITIONS_CATALOG_KZ: Dict[str, List[ConditionItem]] = {
+CONDITIONS_CATALOG_KZ: dict[str, list[ConditionItem]] = {
     "кардиология": [
         ConditionItem(name="Стенокардия", icd10="I20", category="кардиология",
                       urgency_hint="Төс артындағы қысатын ауырсыну — ЖҚС жоққа шығару, 103 шақыру"),
@@ -180,7 +177,7 @@ CONDITIONS_CATALOG_KZ: Dict[str, List[ConditionItem]] = {
 
 CONDITIONS_CATALOG = CONDITIONS_CATALOG_RU
 
-def get_conditions_catalog(lang: str = "ru") -> Dict[str, List[ConditionItem]]:
+def get_conditions_catalog(lang: str = "ru") -> dict[str, list[ConditionItem]]:
     l = _norm_lang(lang)
     if l == "en":
         return CONDITIONS_CATALOG_EN

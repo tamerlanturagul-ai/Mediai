@@ -64,6 +64,4 @@ def requires_auth(path: str, method: str = "") -> bool:
         return False
     if not path.startswith("/api/"):
         return False
-    if path == "/api/health":
-        return False
-    return True
+    return path != "/api/health"

@@ -1,0 +1,38 @@
+[project]
+name = "medi-ai"
+version = "1.0.0"
+description = "MediAI — primary clinical triage (FastAPI)"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+# TASK-010: single source of truth for test discovery + import path.
+# pythonpath replaces the 8x sys.path.insert hacks in medi-ai/tests/test_*.py.
+testpaths = ["medi-ai/tests"]
+pythonpath = ["medi-ai"]
+
+[tool.ruff]
+# TASK-010: line-length matches the historic flake8 max-line-length (127);
+# target keeps modernization rules (UP) safe for Python 3.10.
+line-length = 127
+target-version = "py310"
+# NOTE: no `select` / `ignore` overrides on purpose — the CI gate uses
+# ruff's default ruleset, so nothing passes silently (unlike the old
+# flake8 --exit-zero step). E501 stays outside the default select:
+# long RU/EN/KZ clinical strings must remain intact single literals.
+
+[tool.mypy]
+python_version = "3.10"
+show_error_codes = true
+
+# TASK-010: strict typing for the clinical core; the HTTP layer
+# (app/main.py, app/schemas.py, app/sport_engine.py) stays lenient
+# because FastAPI decorator idioms are not strict-clean.
+[[tool.mypy.overrides]]
+module = ["app.domain.*", "app.services.*"]
+strict = true
+
+[tool.coverage.run]
+source = ["medi-ai/app"]
+
+[tool.coverage.report]
+show_missing = true
