@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MediAI — первичный клинический триаж</title>
+  <title data-i18n="docTitle">MediAI — первичный клинический триаж</title>
   <link rel="icon" href="/static/logo.png" />
   <link rel="stylesheet" href="/static/tailwind.css" />
   <style>
@@ -25,15 +25,15 @@
   <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-4">
       <a href="/" class="flex items-center gap-2 text-base font-semibold tracking-tight"><img src="/static/logo.png" alt="MediAI" class="h-8 w-8" style="height:2rem;width:2rem;object-fit:contain">MediAI</a>
-      <span id="headerTagline" class="hidden md:inline text-xs text-slate-500">первичный клинический триаж · доказательная медицина</span>
+      <span id="headerTagline" data-i18n="tagline" class="hidden md:inline text-xs text-slate-500">первичный клинический триаж · доказательная медицина</span>
       <nav class="ml-auto flex items-center gap-1 text-sm">
         <div class="relative">
-          <button id="megaBtn" class="px-3 py-1.5 rounded-lg border text-slate-700 hover:bg-slate-100">Каталог болезней ▾</button>
+          <button id="megaBtn" data-i18n="catalog" class="px-3 py-1.5 rounded-lg border text-slate-700 hover:bg-slate-100">Каталог болезней ▾</button>
         </div>
-        <a id="navTriage" href="#triage" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Триаж</a>
-        <a id="navSport" href="#sport" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Спорт</a>
-        <a id="navEvidence" href="#evidence" class="hidden md:inline px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Источники</a>
-        <span id="emergencyLabel" class="px-2 py-1.5 text-sm font-medium text-red-700">Скорая: 103</span>
+        <a id="navTriage" data-i18n="triage" href="#triage" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Триаж</a>
+        <a id="navSport" data-i18n="sport" href="#sport" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Спорт</a>
+        <a id="navEvidence" data-i18n="evidence" href="#evidence" class="hidden md:inline px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Источники</a>
+        <span id="emergencyLabel" data-i18n="emergency" class="px-2 py-1.5 text-sm font-medium text-red-700">Скорая: 103</span>
         <div id="langRow" class="flex items-center gap-1 ml-2" role="group" aria-label="Язык / Language / Тіл">
           <button data-lang="ru" class="langBtn px-2 py-1 rounded-lg border text-xs">RU</button>
           <button data-lang="en" class="langBtn px-2 py-1 rounded-lg border text-xs">EN</button>
@@ -45,11 +45,11 @@
     <div id="megaMenu" class="mega absolute left-0 right-0 top-full bg-white border-b border-slate-200 z-40">
       <div class="max-w-6xl mx-auto px-4 py-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="font-semibold text-base">Каталог заболеваний <span class="text-xs font-normal text-slate-500">с кодами МКБ-10</span></h2>
-          <button id="megaClose" class="text-sm text-slate-500 hover:text-slate-900">Закрыть ✕</button>
+          <h2 class="font-semibold text-base"><span data-i18n="megaTitle">Каталог заболеваний</span> <span data-i18n="megaSub" class="text-xs font-normal text-slate-500">с кодами МКБ-10</span></h2>
+          <button id="megaClose" data-i18n="megaClose" class="text-sm text-slate-500 hover:text-slate-900">Закрыть ✕</button>
         </div>
         <div id="megaGrid" class="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <p class="text-sm text-slate-500 loader-dots">Загрузка каталога <span></span><span></span><span></span></p>
+          <p class="text-sm text-slate-500 loader-dots"><span data-i18n="megaLoading">Загрузка каталога</span> <span></span><span></span><span></span></p>
         </div>
       </div>
     </div>
@@ -61,47 +61,47 @@
     <div class="flex flex-col gap-4 min-w-0">
     <!-- ===== Профиль ===== -->
     <aside class="bg-white rounded-xl border border-slate-200 p-5">
-      <h2 class="text-sm font-semibold mb-3">Профиль пациента</h2>
+      <h2 data-i18n="profileTitle" class="text-sm font-semibold mb-3">Профиль пациента</h2>
       <div class="grid grid-cols-2 gap-3 text-sm">
-        <label class="block">Возраст
+        <label class="block"><span data-i18n="age">Возраст</span>
           <input id="age" type="number" min="0" max="120" value="35" class="mt-1 w-full border rounded-lg px-2 py-1.5" />
         </label>
-        <label class="block">Пол
+        <label class="block"><span data-i18n="sex">Пол</span>
           <select id="sex" class="mt-1 w-full border rounded-lg px-2 py-1.5">
-            <option value="male">Мужской</option>
-            <option value="female">Женский</option>
+            <option value="male" data-i18n="male">Мужской</option>
+            <option value="female" data-i18n="female">Женский</option>
           </select>
         </label>
-        <label class="block">Рост, см
+        <label class="block"><span data-i18n="height">Рост, см</span>
           <input id="height" type="number" min="50" max="250" value="175" class="mt-1 w-full border rounded-lg px-2 py-1.5" />
         </label>
-        <label class="block">Вес, кг
+        <label class="block"><span data-i18n="weight">Вес, кг</span>
           <input id="weight" type="number" min="20" max="300" value="78" class="mt-1 w-full border rounded-lg px-2 py-1.5" />
         </label>
       </div>
       <label class="mt-3 flex items-center gap-2 text-sm">
-        <input id="dietFlag" type="checkbox" class="w-4 h-4" /> Запросить лечебное питание
+        <input id="dietFlag" type="checkbox" class="w-4 h-4" /> <span data-i18n="dietFlag">Запросить лечебное питание</span>
       </label>
       <div class="mt-3 text-sm">
-        <p class="font-medium mb-1">Теги симптомов</p>
+        <p data-i18n="tagsTitle" class="font-medium mb-1">Теги симптомов</p>
         <div class="flex flex-wrap gap-1.5" id="tagRow">
-          <button data-tag="острая боль" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">острая боль</button>
-          <button data-tag="лихорадка" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">лихорадка</button>
-          <button data-tag="тошнота" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">тошнота</button>
-          <button data-tag="одышка" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">одышка</button>
-          <button data-tag="сыпь" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">сыпь</button>
+          <button data-tag="острая боль" data-i18n="tag_acute" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">острая боль</button>
+          <button data-tag="лихорадка" data-i18n="tag_fever" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">лихорадка</button>
+          <button data-tag="тошнота" data-i18n="tag_nausea" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">тошнота</button>
+          <button data-tag="одышка" data-i18n="tag_dyspnea" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">одышка</button>
+          <button data-tag="сыпь" data-i18n="tag_rash" class="tagBtn px-2 py-1 rounded-full border hover:bg-slate-100 text-xs">сыпь</button>
         </div>
-        <input id="tagsInput" placeholder="свои теги через запятую" class="mt-2 w-full border rounded-lg px-2 py-1.5 text-sm" />
+        <input id="tagsInput" data-i18n-ph="tagsPh" placeholder="свои теги через запятую" class="mt-2 w-full border rounded-lg px-2 py-1.5 text-sm" />
       </div>
-      <div class="mt-4 p-3 rounded-lg border text-xs text-slate-600">
+      <div data-i18n="disclaimer" class="mt-4 p-3 rounded-lg border text-xs text-slate-600">
         Не заменяет врача. При жизнеугрожающих симптомах — 103/112.
       </div>
     </aside>
 
     <!-- Карта тела -->
     <section id="triage" class="bg-white rounded-xl border border-slate-200 p-5">
-      <h2 class="text-sm font-semibold mb-1">1. Выберите зону тела</h2>
-        <p class="text-sm text-slate-500 mb-3">Кликните по карте или кнопке — зона подставится в скрининг.</p>
+      <h2 data-i18n="zoneTitle" class="text-sm font-semibold mb-1">1. Выберите зону тела</h2>
+        <p data-i18n="zoneSub" class="text-sm text-slate-500 mb-3">Кликните по карте или кнопке — зона подставится в скрининг.</p>
         <div class="flex flex-col sm:flex-row gap-4 items-center">
           <svg id="bodyMap" viewBox="0 0 140 320" class="h-64 w-auto shrink-0" role="img" aria-label="Интерактивная карта тела">
             <ellipse cx="70" cy="32" rx="22" ry="26" fill="#e2e8f0" class="zone" data-zone="голова" />
@@ -114,38 +114,38 @@
           </svg>
           <div class="flex-1 w-full">
             <div class="flex flex-wrap gap-2" id="zoneRow">
-              <button data-zone="голова" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Голова</button>
-              <button data-zone="грудь" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Грудь</button>
-              <button data-zone="живот" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Живот</button>
-              <button data-zone="конечности" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Руки / ноги / спина</button>
-              <button data-zone="кожа" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Кожа</button>
+              <button data-zone="голова" data-i18n="zone_head" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Голова</button>
+              <button data-zone="грудь" data-i18n="zone_chest" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Грудь</button>
+              <button data-zone="живот" data-i18n="zone_abdomen" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Живот</button>
+              <button data-zone="конечности" data-i18n="zone_limbs" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Руки / ноги / спина</button>
+              <button data-zone="кожа" data-i18n="zone_skin" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Кожа</button>
             </div>
-            <p class="mt-2 text-sm">Выбрано: <b id="zoneLabel">живот</b></p>
+            <p class="mt-2 text-sm"><span data-i18n="selected">Выбрано:</span> <b id="zoneLabel">живот</b></p>
             <div class="mt-3">
-              <p class="text-sm font-medium mb-1">Частые жалобы — подставить одним нажатием</p>
+              <p data-i18n="presetTitle" class="text-sm font-medium mb-1">Частые жалобы — подставить одним нажатием</p>
               <div class="flex flex-wrap gap-2" id="presetRow">
-                <button data-preset="throat-fever" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Боль в горле + температура</button>
-                <button data-preset="chest-press" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Давящая боль в груди</button>
-                <button data-preset="abdomen-rl" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Боль справа внизу живота</button>
-                <button data-preset="migraine" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Мигренеподобная головная боль</button>
-                <button data-preset="rash" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Сыпь распространяется</button>
-                <button data-preset="back-numb" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Боль в спине + онемение</button>
+                <button data-preset="throat-fever" data-i18n="presetThroat" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Боль в горле + температура</button>
+                <button data-preset="chest-press" data-i18n="presetChest" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Давящая боль в груди</button>
+                <button data-preset="abdomen-rl" data-i18n="presetAbdomen" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Боль справа внизу живота</button>
+                <button data-preset="migraine" data-i18n="presetMigraine" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Мигренеподобная головная боль</button>
+                <button data-preset="rash" data-i18n="presetRash" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Сыпь распространяется</button>
+                <button data-preset="back-numb" data-i18n="presetBack" class="presetBtn px-3 py-1.5 rounded-full border hover:bg-slate-100 text-xs">Боль в спине + онемение</button>
               </div>
-              <p class="mt-1 text-xs text-slate-500">Пресет заполняет зону, текст и теги. Зона «голова» покрывает горло/шею (маппинг горло→голова).</p>
+              <p data-i18n="presetNote" class="mt-1 text-xs text-slate-500">Пресет заполняет зону, текст и теги. Зона «голова» покрывает горло/шею (маппинг горло→голова).</p>
             </div>
           </div>
         </div>
         <!-- TASK-008: фото-конверт для врача (не автодиагноз) -->
         <div class="mt-4 border-t border-slate-200 pt-4" id="photoBlock">
-          <p class="text-sm font-medium mb-1">Фото для врача <span class="font-normal text-slate-500">(необязательно, макс. 3 — jpeg/png/webp до 8 МБ)</span></p>
-          <p class="text-xs text-slate-500 mb-2">Фото для врача, не автодиагноз: снимок не влияет на оценку и прикладывается как вложение для очного приёма. Не загружайте фото лица и документов — это персональные данные.</p>
+          <p class="text-sm font-medium mb-1"><span data-i18n="photoTitle">Фото для врача</span> <span data-i18n="photoSub" class="font-normal text-slate-500">(необязательно, макс. 3 — jpeg/png/webp до 8 МБ)</span></p>
+          <p data-i18n="photoDesc" class="text-xs text-slate-500 mb-2">Фото для врача, не автодиагноз: снимок не влияет на оценку и прикладывается как вложение для очного приёма. Не загружайте фото лица и документов — это персональные данные.</p>
           <label class="flex items-start gap-2 text-xs text-slate-700 mb-2">
             <input id="photoConsent" type="checkbox" class="w-4 h-4 mt-0.5" />
-            <span>Согласен(на) прикрепить фото для врача, не автодиагноз.</span>
+            <span data-i18n="photoConsent">Согласен(на) прикрепить фото для врача, не автодиагноз.</span>
           </label>
           <div class="flex items-center gap-2">
             <input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" class="text-xs" />
-            <button id="photoUploadBtn" class="px-3 py-1.5 rounded-full border text-xs bg-white hover:bg-slate-100">Загрузить</button>
+            <button id="photoUploadBtn" data-i18n="photoUpload" class="px-3 py-1.5 rounded-full border text-xs bg-white hover:bg-slate-100">Загрузить</button>
           </div>
           <p id="photoHint" class="text-xs text-slate-500 mt-1"></p>
           <div id="photoList" class="flex flex-wrap gap-2 mt-2"></div>
@@ -156,20 +156,20 @@
     <div class="flex flex-col gap-4 min-w-0">
       <!-- Чат -->
       <section class="bg-white rounded-xl border border-slate-200 p-5 flex flex-col">
-        <h2 class="text-sm font-semibold mb-1">Шаг 1–2. Опишите симптомы и пройдите уточнение</h2>
+        <h2 data-i18n="chatTitle" class="text-sm font-semibold mb-1">Шаг 1–2. Опишите симптомы и пройдите уточнение</h2>
         <ol id="steps" class="flex flex-wrap items-center gap-2 text-xs text-slate-500 mb-3" aria-label="Этапы триажа">
-          <li data-step="1" class="px-2.5 py-1 rounded-full border">Шаг 1 — профиль и симптомы</li>
-          <li data-step="2" class="px-2.5 py-1 rounded-full border">Шаг 2 — уточнение: вопрос <span id="stepQpos">–</span>/3</li>
-          <li data-step="3" class="px-2.5 py-1 rounded-full border">Шаг 3 — оценка + как посчитали</li>
+          <li data-step="1" data-i18n="step1" class="px-2.5 py-1 rounded-full border">Шаг 1 — профиль и симптомы</li>
+          <li data-step="2" class="px-2.5 py-1 rounded-full border"><span data-i18n="step2pre">Шаг 2 — уточнение: вопрос</span> <span id="stepQpos">–</span>/3</li>
+          <li data-step="3" data-i18n="step3" class="px-2.5 py-1 rounded-full border">Шаг 3 — оценка + как посчитали</li>
         </ol>
         <div id="chat" class="chat-scroll flex flex-col gap-3 max-h-[420px] overflow-y-auto border rounded-xl p-3 bg-white mb-3">
-          <div class="self-start max-w-[85%] bg-white border rounded-xl px-3 py-2 text-sm">
+          <div id="chatGreeting" data-i18n="greeting" class="self-start max-w-[85%] bg-white border rounded-xl px-3 py-2 text-sm">
             Здравствуйте! Я MediAI. Опишите симптомы своими словами в поле ниже и нажмите «Отправить» —
             я задам ровно 3 уточняющих вопроса для исключения острых состояний.
           </div>
         </div>
         <div id="loader" class="hidden items-center gap-2 text-sm text-slate-500 mb-2 loader-dots">
-          <span></span><span></span><span></span> Запрос выполняется…
+          <span></span><span></span><span></span> <span data-i18n="loading">Запрос выполняется…</span>
         </div>
         <div id="questions" class="flex flex-col gap-3 mb-3"></div>
         <!-- ChatGPT-инпут с кнопкой + -->
@@ -177,34 +177,34 @@
           <div class="relative">
             <button id="plusBtn" title="Дополнительно" class="w-10 h-10 rounded-full border text-xl leading-none hover:bg-slate-100">+</button>
             <div id="plusMenu" class="hidden absolute bottom-12 left-0 w-56 bg-white border rounded-xl p-2 text-sm z-30">
-              <button id="plusDiet" class="block w-full text-left px-2 py-1.5 rounded hover:bg-slate-100">Включить запрос диеты</button>
-              <button id="plusClear" class="block w-full text-left px-2 py-1.5 rounded hover:bg-slate-100">Очистить чат</button>
-              <button id="plusSport" class="block w-full text-left px-2 py-1.5 rounded hover:bg-slate-100">Перейти к спорт-плану</button>
+              <button id="plusDiet" data-i18n="plusDiet" class="block w-full text-left px-2 py-1.5 rounded hover:bg-slate-100">Включить запрос диеты</button>
+              <button id="plusClear" data-i18n="plusClear" class="block w-full text-left px-2 py-1.5 rounded hover:bg-slate-100">Очистить чат</button>
+              <button id="plusSport" data-i18n="plusSport" class="block w-full text-left px-2 py-1.5 rounded hover:bg-slate-100">Перейти к спорт-плану</button>
             </div>
           </div>
-          <input id="symptoms" placeholder="Опишите симптомы своими словами…" class="flex-1 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <button id="sendBtn" class="px-5 py-2.5 rounded-full bg-slate-900 text-white text-sm hover:bg-slate-700">Отправить</button>
+          <input id="symptoms" data-i18n-ph="symptomsPh" placeholder="Опишите симптомы своими словами…" class="flex-1 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <button id="sendBtn" data-i18n="send" class="px-5 py-2.5 rounded-full bg-slate-900 text-white text-sm hover:bg-slate-700">Отправить</button>
         </div>
-        <button id="finalBtn" disabled class="mt-3 px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm disabled:opacity-40 hover:bg-slate-700">
+        <button id="finalBtn" data-i18n="finalBtn" disabled class="mt-3 px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm disabled:opacity-40 hover:bg-slate-700">
           Получить оценку риска
         </button>
         <label class="mt-2 flex items-start gap-2 text-sm text-slate-700">
           <input id="consentCheck" type="checkbox" class="w-4 h-4 mt-0.5" />
-          <span>Я понимаю, что это не диагноз и не заменяет врача. При жизнеугрожающих симптомах — 103/112.</span>
+          <span data-i18n="consent">Я понимаю, что это не диагноз и не заменяет врача. При жизнеугрожающих симптомах — 103/112.</span>
         </label>
       </section>
 
       <!-- Результат + шкала триажа -->
       <section id="result" class="hidden bg-white rounded-xl border border-slate-200 p-5">
         <div id="emergencyBanner" class="hidden mb-3 p-3 rounded-lg bg-red-600 text-white text-sm font-semibold"></div>
-        <h2 class="text-sm font-semibold mb-2">Результат триажа (предварительный, не диагноз)</h2>
-        <p class="text-xs text-slate-500 mb-2">Эвристическая оценка для обсуждения с врачом. Не ставит диагноз и не заменяет очный осмотр.</p>
+        <h2 data-i18n="resultTitle" class="text-sm font-semibold mb-2">Результат триажа (предварительный, не диагноз)</h2>
+        <p data-i18n="resultSub" class="text-xs text-slate-500 mb-2">Эвристическая оценка для обсуждения с врачом. Не ставит диагноз и не заменяет очный осмотр.</p>
         <p id="framing" class="mb-3 p-3 rounded-lg border text-sm text-slate-700"></p>
         <div id="photosBox" class="hidden mb-3 p-3 rounded-lg border text-sm"></div>
         <div class="flex items-center gap-3 mb-1 text-sm">
           <span id="triageBadge" class="px-3 py-1 rounded-full font-bold text-white">—</span>
-          <span>Риск: <b id="riskScore">—</b></span>
-          <span>ИМТ: <b id="bmiVal">—</b> (<span id="bmiCat">—</span>)</span>
+          <span><span data-i18n="risk">Риск</span>: <b id="riskScore">—</b></span>
+          <span><span data-i18n="bmi">ИМТ</span>: <b id="bmiVal">—</b> (<span id="bmiCat">—</span>)</span>
         </div>
         <!-- Шкала триажа -->
         <div class="relative h-2 rounded-full overflow-visible mb-1 flex">
@@ -219,67 +219,67 @@
         </div>
         <div class="grid md:grid-cols-2 gap-4 text-sm">
           <div>
-            <h3 class="text-sm font-semibold mb-1">Возможные причины (не диагноз, МКБ-10 для обсуждения с врачом)</h3>
+            <h3 data-i18n="condTitle" class="text-sm font-semibold mb-1">Возможные причины (не диагноз, МКБ-10 для обсуждения с врачом)</h3>
             <div id="conds" class="flex flex-col gap-2"></div>
           </div>
           <div>
-            <h3 class="text-sm font-semibold mb-1">Лечебное питание</h3>
+            <h3 data-i18n="dietTitle" class="text-sm font-semibold mb-1">Лечебное питание</h3>
             <div id="diet" class="p-3 rounded-lg border text-sm"></div>
           </div>
         </div>
         <div class="grid md:grid-cols-2 gap-4 text-sm mt-4">
           <div>
-            <h3 class="text-sm font-semibold mb-1">Пошаговый план</h3>
+            <h3 data-i18n="planTitle" class="text-sm font-semibold mb-1">Пошаговый план</h3>
             <ol id="actions" class="list-decimal ml-5 flex flex-col gap-1"></ol>
-            <p class="mt-2">Врач: <b id="seeDoctor">—</b></p>
-            <h3 class="text-sm font-semibold mt-3 mb-1 text-red-700">Категорически нельзя</h3>
+            <p class="mt-2"><span data-i18n="doctor">Врач:</span> <b id="seeDoctor">—</b></p>
+            <h3 data-i18n="forbiddenTitle" class="text-sm font-semibold mt-3 mb-1 text-red-700">Категорически нельзя</h3>
             <ul id="forbidden" class="list-disc ml-5 flex flex-col gap-1 text-red-900"></ul>
           </div>
           <div id="evidence">
-            <h3 class="text-sm font-semibold mb-1">Доказательные источники</h3>
+            <h3 data-i18n="evTitle" class="text-sm font-semibold mb-1">Доказательные источники</h3>
             <div id="evList" class="flex flex-col gap-1"></div>
           </div>
         </div>
         <div class="mt-4 p-3 rounded-lg border text-sm" id="howCounted">
-          <h3 class="text-sm font-semibold mb-1">Как мы посчитали (прозрачность)</h3>
-          <p class="text-xs text-slate-500 mb-2">Эвристические правила, не диагноз. Версия правил: <b id="rulesVer">—</b>. Баллы суммируются в эвристический риск-балл (пороги триажа 25/60/85).</p>
+          <h3 data-i18n="howTitle" class="text-sm font-semibold mb-1">Как мы посчитали (прозрачность)</h3>
+          <p class="text-xs text-slate-500 mb-2"><span data-i18n="howSub1">Эвристические правила, не диагноз. Версия правил:</span> <b id="rulesVer">—</b><span data-i18n="howSub2">. Баллы суммируются в эвристический риск-балл (пороги триажа 25/60/85).</span></p>
           <ul id="breakdown" class="list-disc ml-5 flex flex-col gap-1"></ul>
-          <p class="text-xs text-slate-500 mt-2">Оценки причин — качественные (низкая / средняя / высокая). Числа в JSON оставлены для совместимости и не являются точной вероятностью диагноза.</p>
+          <p data-i18n="howNote" class="text-xs text-slate-500 mt-2">Оценки причин — качественные (низкая / средняя / высокая). Числа в JSON оставлены для совместимости и не являются точной вероятностью диагноза.</p>
         </div>
       </section>
     </div>
 
     <!-- Спорт -->
     <section id="sport" class="bg-white rounded-xl border border-slate-200 p-5 lg:col-span-2">
-        <h2 class="text-sm font-semibold mb-1">Спорт-план</h2>
-        <p class="text-sm text-slate-500 mb-3">Реалистичный темп без завышенных ожиданий. Данные профиля подставляются из сайдбара.</p>
+        <h2 data-i18n="sportTitle" class="text-sm font-semibold mb-1">Спорт-план</h2>
+        <p data-i18n="sportSub" class="text-sm text-slate-500 mb-3">Реалистичный темп без завышенных ожиданий. Данные профиля подставляются из сайдбара.</p>
         <div class="grid sm:grid-cols-3 gap-3 text-sm">
-          <label class="block">Цель
+          <label class="block"><span data-i18n="goal">Цель</span>
             <select id="goal" class="mt-1 w-full border rounded-lg px-2 py-1.5">
-              <option value="lose">Снижение веса</option>
-              <option value="gain">Набор массы</option>
-              <option value="maintain">Поддержание</option>
-              <option value="strength">Сила</option>
-              <option value="endurance">Выносливость</option>
+              <option value="lose" data-i18n="goalLose">Снижение веса</option>
+              <option value="gain" data-i18n="goalGain">Набор массы</option>
+              <option value="maintain" data-i18n="goalMaintain">Поддержание</option>
+              <option value="strength" data-i18n="goalStrength">Сила</option>
+              <option value="endurance" data-i18n="goalEndurance">Выносливость</option>
             </select>
           </label>
-          <label class="block">Активность
+          <label class="block"><span data-i18n="activity">Активность</span>
             <select id="activity" class="mt-1 w-full border rounded-lg px-2 py-1.5">
-              <option value="sedentary">Сидячий образ</option>
-              <option value="light" selected>Лёгкая</option>
-              <option value="moderate">Умеренная</option>
-              <option value="active">Высокая</option>
-              <option value="athlete">Атлет</option>
+              <option value="sedentary" data-i18n="actSedentary">Сидячий образ</option>
+              <option value="light" data-i18n="actLight" selected>Лёгкая</option>
+              <option value="moderate" data-i18n="actModerate">Умеренная</option>
+              <option value="active" data-i18n="actActive">Высокая</option>
+              <option value="athlete" data-i18n="actAthlete">Атлет</option>
             </select>
           </label>
           <div class="flex items-end">
-            <button id="sportBtn" class="w-full px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-700">Рассчитать план</button>
+            <button id="sportBtn" data-i18n="sportBtn" class="w-full px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-700">Рассчитать план</button>
           </div>
         </div>
         <div id="sportOut" class="hidden mt-4 text-sm"></div>
       </section>
 
-      <footer class="text-xs text-slate-500 pb-6 lg:col-span-2">
+      <footer data-i18n="footer" class="text-xs text-slate-500 pb-6 lg:col-span-2">
         MediAI не ставит диагноз и не заменяет врача. Доказательная база: ВОЗ, PubMed, клинические протоколы (см. источники в результате).
       </footer>
   </div>
@@ -288,12 +288,131 @@
 const $ = (id) => document.getElementById(id);
 const state = { lang: 'ru', zone: 'живот', tags: new Set(), questions: [], answers: {}, qIndex: 0, photoIds: [] };
 
-// ---------- TASK-016: язык интерфейса RU | EN | KZ (static header labels only) ----------
-const HEADER_I18N = {
-  ru: { tagline: 'первичный клинический триаж · доказательная медицина', catalog: 'Каталог болезней ▾', triage: 'Триаж', sport: 'Спорт', evidence: 'Источники', emergency: 'Скорая: 103' },
-  en: { tagline: 'primary clinical triage · evidence-based medicine', catalog: 'Conditions ▾', triage: 'Triage', sport: 'Sport', evidence: 'Sources', emergency: 'Emergency: 103' },
-  kz: { tagline: 'бастапқы клиникалық триаж · дәлелді медицина', catalog: 'Аурулар каталогы ▾', triage: 'Триаж', sport: 'Спорт', evidence: 'Дереккөздер', emergency: 'Жедел жәрдем: 103' },
+// ---------- TASK-018: full interface i18n (static chrome + JS literals; server data untouched) ----------
+// Backend already localizes questions/answers/result; this dict covers static chrome only.
+// TRAPS: data-zone/data-tag values, PRESETS text/tags, q.options stay RU/backend-owned — captions only.
+const I18N = {
+  ru: {
+    docTitle: 'MediAI — первичный клинический триаж',
+    tagline: 'первичный клинический триаж · доказательная медицина', catalog: 'Каталог болезней ▾', triage: 'Триаж', sport: 'Спорт', evidence: 'Источники', emergency: 'Скорая: 103',
+    megaTitle: 'Каталог заболеваний', megaSub: 'с кодами МКБ-10', megaClose: 'Закрыть ✕', megaLoading: 'Загрузка каталога', megaError: 'Не удалось загрузить каталог. Проверьте, что backend запущен.',
+    profileTitle: 'Профиль пациента', age: 'Возраст', sex: 'Пол', male: 'Мужской', female: 'Женский', height: 'Рост, см', weight: 'Вес, кг', dietFlag: 'Запросить лечебное питание', tagsTitle: 'Теги симптомов', tagsPh: 'свои теги через запятую', disclaimer: 'Не заменяет врача. При жизнеугрожающих симптомах — 103/112.',
+    zoneTitle: '1. Выберите зону тела', zoneSub: 'Кликните по карте или кнопке — зона подставится в скрининг.', zone_head: 'Голова', zone_chest: 'Грудь', zone_abdomen: 'Живот', zone_limbs: 'Руки / ноги / спина', zone_skin: 'Кожа', selected: 'Выбрано:',
+    presetTitle: 'Частые жалобы — подставить одним нажатием', presetThroat: 'Боль в горле + температура', presetChest: 'Давящая боль в груди', presetAbdomen: 'Боль справа внизу живота', presetMigraine: 'Мигренеподобная головная боль', presetRash: 'Сыпь распространяется', presetBack: 'Боль в спине + онемение', presetNote: 'Пресет заполняет зону, текст и теги. Зона «голова» покрывает горло/шею (маппинг горло→голова).',
+    photoTitle: 'Фото для врача', photoSub: '(необязательно, макс. 3 — jpeg/png/webp до 8 МБ)', photoDesc: 'Фото для врача, не автодиагноз: снимок не влияет на оценку и прикладывается как вложение для очного приёма. Не загружайте фото лица и документов — это персональные данные.', photoConsent: 'Согласен(на) прикрепить фото для врача, не автодиагноз.', photoUpload: 'Загрузить',
+    chatTitle: 'Шаг 1–2. Опишите симптомы и пройдите уточнение', step1: 'Шаг 1 — профиль и симптомы', step2pre: 'Шаг 2 — уточнение: вопрос', step3: 'Шаг 3 — оценка + как посчитали',
+    greeting: 'Здравствуйте! Я MediAI. Опишите симптомы своими словами в поле ниже и нажмите «Отправить» — я задам ровно 3 уточняющих вопроса для исключения острых состояний.',
+    loading: 'Запрос выполняется…', plusTitle: 'Дополнительно', plusDiet: 'Включить запрос диеты', plusClear: 'Очистить чат', plusSport: 'Перейти к спорт-плану', symptomsPh: 'Опишите симптомы своими словами…', send: 'Отправить', finalBtn: 'Получить оценку риска', consent: 'Я понимаю, что это не диагноз и не заменяет врача. При жизнеугрожающих симптомах — 103/112.',
+    resultTitle: 'Результат триажа (предварительный, не диагноз)', resultSub: 'Эвристическая оценка для обсуждения с врачом. Не ставит диагноз и не заменяет очный осмотр.', risk: 'Риск', bmi: 'ИМТ',
+    condTitle: 'Возможные причины (не диагноз, МКБ-10 для обсуждения с врачом)', dietTitle: 'Лечебное питание', planTitle: 'Пошаговый план', doctor: 'Врач:', forbiddenTitle: 'Категорически нельзя', evTitle: 'Доказательные источники', howTitle: 'Как мы посчитали (прозрачность)',
+    howSub1: 'Эвристические правила, не диагноз. Версия правил:', howSub2: '. Баллы суммируются в эвристический риск-балл (пороги триажа 25/60/85).', howNote: 'Оценки причин — качественные (низкая / средняя / высокая). Числа в JSON оставлены для совместимости и не являются точной вероятностью диагноза.',
+    sportTitle: 'Спорт-план', sportSub: 'Реалистичный темп без завышенных ожиданий. Данные профиля подставляются из сайдбара.', goal: 'Цель', goalLose: 'Снижение веса', goalGain: 'Набор массы', goalMaintain: 'Поддержание', goalStrength: 'Сила', goalEndurance: 'Выносливость',
+    activity: 'Активность', actSedentary: 'Сидячий образ', actLight: 'Лёгкая', actModerate: 'Умеренная', actActive: 'Высокая', actAthlete: 'Атлет', sportBtn: 'Рассчитать план',
+    footer: 'MediAI не ставит диагноз и не заменяет врача. Доказательная база: ВОЗ, PubMed, клинические протоколы (см. источники в результате).',
+    tag_acute: 'острая боль', tag_fever: 'лихорадка', tag_nausea: 'тошнота', tag_dyspnea: 'одышка', tag_rash: 'сыпь',
+    photoNeedConsent: 'Отметьте согласие «Фото для врача, не автодиагноз» перед загрузкой.', photoChoose: 'Выберите файл (jpeg/png/webp, до 8 МБ).', photoMax: 'Уже прикреплено 3 фото — максимум.', photoUploading: 'Загрузка…',
+    photoDone: 'Готово: ', photoWarn: 'Загружено, но: ', photoRetry: ' Можно переснять и загрузить заново.', photoErr: 'Ошибка загрузки: {msg}', photoItem: 'фото {n}', photoRedo: '✕ переснять',
+    presetApplied: 'Подставлен шаблон жалобы. Проверьте текст и теги, при необходимости дополните, затем нажмите «Отправить».', dietPlusMsg: 'Запрос лечебного питания включён — он будет учтён в финальной оценке.',
+    shortSymptoms: 'Опишите симптомы чуть подробнее (минимум 3 символа).', answerOne: 'Отвечайте по одному: ниже вопрос 1 из 3. После третьего станет доступна кнопка «Получить оценку риска».', reqError: 'Ошибка запроса: {msg}. Убедитесь, что сервер запущен (uvicorn app.main:app).',
+    qCounter: 'Вопрос {a} из {b}', back: '← Назад', answered: 'Отвечено: {done}/3', consentFirst: 'Подтвердите согласие: «Я понимаю, что это не диагноз» — отметьте галочку перед оценкой.',
+    finalMsg: 'Предварительная оценка (не диагноз): уровень {level}, эвристический балл {score}. Обсудите с врачом — детали в карточке ниже, включая «Как мы посчитали».', finalErr: 'Ошибка оценки: {msg}',
+    unsureFallback: 'Не уверен(а)', optYes: 'Да', optNo: 'Нет', optUnsure: 'Не уверен(а)',
+    emBanner: 'Требуется срочная помощь: при ухудшении вызывайте 103/112. ', emBannerRed: 'Не садитесь за руль, обеспечьте покой.', emBannerOrange: 'Обратитесь к врачу в ближайшие часы.',
+    photosForDoctor: 'Фото для врача, не автодиагноз ({n}): ', riskSuffix: ' (эвристический балл, не вероятность диагноза)', probPrefix: 'вероятность: ', probMid: ' (возможная причина, не диагноз) · ',
+    recTitle: 'Рекомендуется:', excTitle: 'Исключить:', menuTitle: 'Пример меню:', noExtraPoints: 'Дополнительных баллов нет — базовый уровень.',
+    statBmi: 'ИМТ', statBmr: 'BMR', statTdee: 'TDEE', statTarget: 'Цель', tempo: 'Темп: ', trainTitle: 'Тренировки:', foodTitle: 'Питание:', contraTitle: 'Противопоказания:', warnTitle: 'Предупреждения:', calcSkeleton: 'Расчёт', sportErr: 'Ошибка расчёта: {msg}', kcal: ' ккал',
+    bandLow: 'низкая', bandMid: 'средняя', bandHigh: 'высокая',
+  },
+  en: {
+    docTitle: 'MediAI — primary clinical triage',
+    tagline: 'primary clinical triage · evidence-based medicine', catalog: 'Conditions ▾', triage: 'Triage', sport: 'Sport', evidence: 'Sources', emergency: 'Emergency: 103',
+    megaTitle: 'Conditions catalog', megaSub: 'with ICD-10 codes', megaClose: 'Close ✕', megaLoading: 'Loading catalog', megaError: 'Could not load the catalog. Make sure the backend is running.',
+    profileTitle: 'Patient profile', age: 'Age', sex: 'Sex', male: 'Male', female: 'Female', height: 'Height, cm', weight: 'Weight, kg', dietFlag: 'Request therapeutic diet', tagsTitle: 'Symptom tags', tagsPh: 'custom tags, comma-separated', disclaimer: 'Not a substitute for a doctor. For life-threatening symptoms call 103/112.',
+    zoneTitle: '1. Select a body zone', zoneSub: 'Click the map or a button — the zone will be used in screening.', zone_head: 'Head', zone_chest: 'Chest', zone_abdomen: 'Abdomen', zone_limbs: 'Arms / legs / back', zone_skin: 'Skin', selected: 'Selected:',
+    presetTitle: 'Common complaints — insert with one tap', presetThroat: 'Sore throat + fever', presetChest: 'Pressing chest pain', presetAbdomen: 'Lower-right abdominal pain', presetMigraine: 'Migraine-like headache', presetRash: 'Spreading rash', presetBack: 'Back pain + numbness', presetNote: 'The preset fills zone, text and tags. The "head" zone covers throat/neck (throat→head mapping).',
+    photoTitle: 'Photo for the doctor', photoSub: '(optional, max 3 — jpeg/png/webp up to 8 MB)', photoDesc: 'Photo for the doctor, not auto-diagnosis: the image does not affect the score and is attached for the in-person visit. Do not upload photos of faces or documents — that is personal data.', photoConsent: 'I agree to attach a photo for the doctor, not auto-diagnosis.', photoUpload: 'Upload',
+    chatTitle: 'Steps 1–2. Describe symptoms and answer clarifications', step1: 'Step 1 — profile and symptoms', step2pre: 'Step 2 — clarification: question', step3: 'Step 3 — assessment + how it was counted',
+    greeting: 'Hello! I am MediAI. Describe your symptoms in your own words in the field below and press "Send" — I will ask exactly 3 clarifying questions to rule out acute conditions.',
+    loading: 'Request in progress…', plusTitle: 'More', plusDiet: 'Include diet request', plusClear: 'Clear chat', plusSport: 'Go to sport plan', symptomsPh: 'Describe your symptoms in your own words…', send: 'Send', finalBtn: 'Get risk assessment', consent: 'I understand this is not a diagnosis and does not replace a doctor. For life-threatening symptoms — 103/112.',
+    resultTitle: 'Triage result (preliminary, not a diagnosis)', resultSub: 'Heuristic assessment to discuss with a doctor. Not a diagnosis, not a substitute for an in-person exam.', risk: 'Risk', bmi: 'BMI',
+    condTitle: 'Possible causes (not a diagnosis, ICD-10 to discuss with a doctor)', dietTitle: 'Therapeutic diet', planTitle: 'Step-by-step plan', doctor: 'Doctor:', forbiddenTitle: 'Strictly do not', evTitle: 'Evidence sources', howTitle: 'How we counted (transparency)',
+    howSub1: 'Heuristic rules, not a diagnosis. Rules version:', howSub2: '. Scores sum into a heuristic risk score (triage thresholds 25/60/85).', howNote: 'Cause likelihoods are qualitative (low / medium / high). Numbers in JSON are kept for compatibility and are not an exact diagnosis probability.',
+    sportTitle: 'Sport plan', sportSub: 'Realistic pace with no inflated expectations. Profile data is taken from the sidebar.', goal: 'Goal', goalLose: 'Weight loss', goalGain: 'Weight gain', goalMaintain: 'Maintenance', goalStrength: 'Strength', goalEndurance: 'Endurance',
+    activity: 'Activity', actSedentary: 'Sedentary', actLight: 'Light', actModerate: 'Moderate', actActive: 'High', actAthlete: 'Athlete', sportBtn: 'Calculate plan',
+    footer: 'MediAI does not diagnose and does not replace a doctor. Evidence base: WHO, PubMed, clinical protocols (see sources in the result).',
+    tag_acute: 'acute pain', tag_fever: 'fever', tag_nausea: 'nausea', tag_dyspnea: 'shortness of breath', tag_rash: 'rash',
+    photoNeedConsent: 'Tick the "Photo for the doctor, not auto-diagnosis" consent before uploading.', photoChoose: 'Choose a file (jpeg/png/webp, up to 8 MB).', photoMax: '3 photos already attached — maximum.', photoUploading: 'Uploading…',
+    photoDone: 'Done: ', photoWarn: 'Uploaded, but: ', photoRetry: ' You can retake and upload again.', photoErr: 'Upload error: {msg}', photoItem: 'photo {n}', photoRedo: '✕ retake',
+    presetApplied: 'Complaint template inserted. Check the text and tags, add details if needed, then press "Send".', dietPlusMsg: 'Therapeutic diet request enabled — it will count in the final assessment.',
+    shortSymptoms: 'Describe the symptoms in a bit more detail (at least 3 characters).', answerOne: 'Answer one by one: question 1 of 3 is below. After the third, the "Get risk assessment" button unlocks.', reqError: 'Request error: {msg}. Make sure the server is running (uvicorn app.main:app).',
+    qCounter: 'Question {a} of {b}', back: '← Back', answered: 'Answered: {done}/3', consentFirst: 'Please confirm consent: "I understand this is not a diagnosis" — tick the box before assessment.',
+    finalMsg: 'Preliminary assessment (not a diagnosis): level {level}, heuristic score {score}. Discuss with a doctor — details in the card below, including "How we counted".', finalErr: 'Assessment error: {msg}',
+    unsureFallback: 'Not sure', optYes: 'Yes', optNo: 'No', optUnsure: 'Not sure',
+    emBanner: 'Urgent care needed: if it worsens, call 103/112. ', emBannerRed: 'Do not drive, rest.', emBannerOrange: 'See a doctor within hours.',
+    photosForDoctor: 'Photo for the doctor, not auto-diagnosis ({n}): ', riskSuffix: ' (heuristic score, not a diagnosis probability)', probPrefix: 'likelihood: ', probMid: ' (possible cause, not a diagnosis) · ',
+    recTitle: 'Recommended:', excTitle: 'Avoid:', menuTitle: 'Sample menu:', noExtraPoints: 'No extra points — baseline level.',
+    statBmi: 'BMI', statBmr: 'BMR', statTdee: 'TDEE', statTarget: 'Target', tempo: 'Pace: ', trainTitle: 'Training:', foodTitle: 'Nutrition:', contraTitle: 'Contraindications:', warnTitle: 'Warnings:', calcSkeleton: 'Calculating', sportErr: 'Calculation error: {msg}', kcal: ' kcal',
+    bandLow: 'low', bandMid: 'medium', bandHigh: 'high',
+  },
+  kz: {
+    docTitle: 'MediAI — бастапқы клиникалық триаж',
+    tagline: 'бастапқы клиникалық триаж · дәлелді медицина', catalog: 'Аурулар каталогы ▾', triage: 'Триаж', sport: 'Спорт', evidence: 'Дереккөздер', emergency: 'Жедел жәрдем: 103',
+    megaTitle: 'Аурулар каталогы', megaSub: 'АХЖ-10 кодтарымен', megaClose: 'Жабу ✕', megaLoading: 'Каталог жүктелуде', megaError: 'Каталог жүктелмеді. Бэкенд іске қосылғанын тексеріңіз.',
+    profileTitle: 'Пациент бейіні', age: 'Жасы', sex: 'Жынысы', male: 'Ер', female: 'Әйел', height: 'Бойы, см', weight: 'Салмағы, кг', dietFlag: 'Емдік тамақтану сұрау', tagsTitle: 'Симптом тегтері', tagsPh: 'өз тегтеріңізді үтірмен', disclaimer: 'Дәрігерді алмастырмайды. Өмірге қауіпті симптомдарда — 103/112.',
+    zoneTitle: '1. Дене аймағын таңдаңыз', zoneSub: 'Картаны немесе батырманы басыңыз — аймақ скринингке қойылады.', zone_head: 'Бас', zone_chest: 'Кеуде', zone_abdomen: 'Іш', zone_limbs: 'Қол / аяқ / арқа', zone_skin: 'Тері', selected: 'Таңдалды:',
+    presetTitle: 'Жиі шағымдар — бір басумен қою', presetThroat: 'Тамақ ауырсынуы + температура', presetChest: 'Кеудедегі қысатын ауырсыну', presetAbdomen: 'Іштің оң төменгі ауырсынуы', presetMigraine: 'Мигрень тәрізді бас ауруы', presetRash: 'Жайылатын бөртпе', presetBack: 'Арқа ауырсынуы + ұю', presetNote: 'Пресет аймақ, мәтін және тегтерді толтырады. «Бас» аймағы тамақ/мойынды қамтиды (тамақ→бас сәйкестігі).',
+    photoTitle: 'Дәрігерге фото', photoSub: '(міндетті емес, макс. 3 — jpeg/png/webp 8 МБ дейін)', photoDesc: 'Дәрігерге фото, автодиагноз емес: сурет бағаға әсер етпейді және бетпе-бет қабылдауға қоса тіркеледі. Бет пен құжаттардың фотосын жүктемеңіз — бұл жеке деректер.', photoConsent: 'Дәрігерге фото тіркеуге келісемін, автодиагноз емес.', photoUpload: 'Жүктеу',
+    chatTitle: '1–2-қадам. Симптомдарды сипаттап, нақтылаудан өтіңіз', step1: '1-қадам — бейін және симптомдар', step2pre: '2-қадам — нақтылау: сұрақ', step3: '3-қадам — бағалау + қалай санадық',
+    greeting: 'Сәлеметсіз бе! Мен MediAI. Симптомдарды төмендегі өріске өз сөзіңізбен сипаттап, «Жіберу» басыңыз — жедел жағдайларды жоққа шығару үшін дәл 3 нақтылау сұрағын қоямын.',
+    loading: 'Сұраныс орындалуда…', plusTitle: 'Қосымша', plusDiet: 'Диета сұранысын қосу', plusClear: 'Чатты тазалау', plusSport: 'Спорт-жоспарға өту', symptomsPh: 'Симптомдарды өз сөзіңізбен сипаттаңыз…', send: 'Жіберу', finalBtn: 'Тәуекел бағасын алу', consent: 'Бұл диагноз емес және дәрігерді алмастырмайтынын түсінемін. Өмірге қауіпті симптомдарда — 103/112.',
+    resultTitle: 'Триаж нәтижесі (алдын ала, диагноз емес)', resultSub: 'Дәрігермен талқылауға арналған эвристикалық бағалау. Диагноз емес, бетпе-бет қарауды алмастырмайды.', risk: 'Тәуекел', bmi: 'ДСИ',
+    condTitle: 'Мүмкін себептер (диагноз емес, дәрігермен талқылауға АХЖ-10)', dietTitle: 'Емдік тамақтану', planTitle: 'Қадамдық жоспар', doctor: 'Дәрігер:', forbiddenTitle: 'Қатаң тыйым салынады', evTitle: 'Дәлелді дереккөздер', howTitle: 'Қалай санадық (ашықтық)',
+    howSub1: 'Эвристикалық ережелер, диагноз емес. Ережелер нұсқасы:', howSub2: '. Ұпайлар эвристикалық тәуекел балына қосылады (триаж шектері 25/60/85).', howNote: 'Себеп ықтималдығы сапалық (төмен / орташа / жоғары). JSON сандары үйлесімділік үшін қалдырылған және нақты диагноз ықтималдығы емес.',
+    sportTitle: 'Спорт-жоспар', sportSub: 'Көтерілмеген шынайы қарқын. Бейін деректері бүйірлік панельден алынады.', goal: 'Мақсат', goalLose: 'Салмақ тастау', goalGain: 'Салмақ қосу', goalMaintain: 'Ұстап тұру', goalStrength: 'Күш', goalEndurance: 'Төзімділік',
+    activity: 'Белсенділік', actSedentary: 'Отырықшы', actLight: 'Жеңіл', actModerate: 'Орташа', actActive: 'Жоғары', actAthlete: 'Спортшы', sportBtn: 'Жоспарды есептеу',
+    footer: 'MediAI диагноз қоймайды және дәрігерді алмастырмайды. Дәлелді база: ДДҰ, PubMed, клиникалық хаттамалар (нәтижедегі дереккөздерді қараңыз).',
+    tag_acute: 'жедел ауырсыну', tag_fever: 'қызба', tag_nausea: 'жүрек айну', tag_dyspnea: 'ентігу', tag_rash: 'бөртпе',
+    photoNeedConsent: 'Жүктеу алдында «Дәрігерге фото, автодиагноз емес» келісімін белгілеңіз.', photoChoose: 'Файл таңдаңыз (jpeg/png/webp, 8 МБ дейін).', photoMax: '3 фото тіркелген — максимум.', photoUploading: 'Жүктелуде…',
+    photoDone: 'Дайын: ', photoWarn: 'Жүктелді, бірақ: ', photoRetry: ' Қайта түсіріп, қайта жүктеуге болады.', photoErr: 'Жүктеу қатесі: {msg}', photoItem: 'фото {n}', photoRedo: '✕ қайта түсіру',
+    presetApplied: 'Шағым үлгісі қойылды. Мәтін мен тегтерді тексеріп, қажет болса толықтырып, «Жіберу» басыңыз.', dietPlusMsg: 'Емдік тамақтану сұранысы қосылды — қорытынды бағада ескеріледі.',
+    shortSymptoms: 'Симптомдарды толығырақ сипаттаңыз (кемі 3 таңба).', answerOne: 'Бір-бірлеп жауап беріңіз: төменде 3-тен 1-сұрақ. Үшіншісінен кейін «Тәуекел бағасын алу» батырмасы ашылады.', reqError: 'Сұраныс қатесі: {msg}. Сервер іске қосылғанын тексеріңіз (uvicorn app.main:app).',
+    qCounter: 'Сұрақ {a} / {b}', back: '← Артқа', answered: 'Жауап берілді: {done}/3', consentFirst: 'Келісімді растаңыз: «Бұл диагноз емес екенін түсінемін» — бағалау алдында жалаушаны белгілеңіз.',
+    finalMsg: 'Алдын ала бағалау (диагноз емес): деңгей {level}, эвристикалық балл {score}. Дәрігермен талқылаңыз — мәліметтер төмендегі карточкада, «Қалай санадық» бөлімінде.', finalErr: 'Бағалау қатесі: {msg}',
+    unsureFallback: 'Сенімді емеспін', optYes: 'Иә', optNo: 'Жоқ', optUnsure: 'Сенімді емеспін',
+    emBanner: 'Шұғыл көмек қажет: күшейсе 103/112 шақырыңыз. ', emBannerRed: 'Көлік жүргізбеңіз, тыныштықты сақтаңыз.', emBannerOrange: 'Алдағы сағаттарда дәрігерге көрініңіз.',
+    photosForDoctor: 'Дәрігерге фото, автодиагноз емес ({n}): ', riskSuffix: ' (эвристикалық балл, диагноз ықтималдығы емес)', probPrefix: 'ықтималдығы: ', probMid: ' (мүмкін себеп, диагноз емес) · ',
+    recTitle: 'Ұсынылады:', excTitle: 'Шығару:', menuTitle: 'Мәзір үлгісі:', noExtraPoints: 'Қосымша ұпай жоқ — базалық деңгей.',
+    statBmi: 'ДСИ', statBmr: 'BMR', statTdee: 'TDEE', statTarget: 'Мақсат', tempo: 'Қарқын: ', trainTitle: 'Жаттығулар:', foodTitle: 'Тамақтану:', contraTitle: 'Қарсы көрсеткіштер:', warnTitle: 'Ескертулер:', calcSkeleton: 'Есептеу', sportErr: 'Есептеу қатесі: {msg}', kcal: ' ккал',
+    bandLow: 'төмен', bandMid: 'орташа', bandHigh: 'жоғары',
+  },
 };
+// t(): static-chrome lookup with ru fallback (never throws, never empty).
+function t(key) {
+  const d = I18N[state.lang] || I18N.ru;
+  if (d && d[key] !== undefined) return d[key];
+  if (I18N.ru[key] !== undefined) return I18N.ru[key];
+  return key;
+}
+function fmt(key, vars) {
+  let s = String(t(key));
+  if (vars) for (const k of Object.keys(vars)) s = s.split('{' + k + '}').join(String(vars[k]));
+  return s;
+}
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+  if ($('plusBtn')) $('plusBtn').title = t('plusTitle');
+}
+// Zone display names per lang (RAW data-zone values stay Russian for the backend).
+const ZONE_NAMES = {
+  ru: {'голова': 'голова', 'грудь': 'грудь', 'живот': 'живот', 'конечности': 'конечности', 'кожа': 'кожа'},
+  en: {'голова': 'head', 'грудь': 'chest', 'живот': 'abdomen', 'конечности': 'limbs', 'кожа': 'skin'},
+  kz: {'голова': 'бас', 'грудь': 'кеуде', 'живот': 'іш', 'конечности': 'аяқ-қол', 'кожа': 'тері'},
+};
+function updateZoneLabel() {
+  const m = ZONE_NAMES[state.lang] || ZONE_NAMES.ru;
+  if ($('zoneLabel')) $('zoneLabel').textContent = m[state.zone] || state.zone;
+}
 function setLang(l) {
   if (l !== 'en' && l !== 'kz') l = 'ru';
   state.lang = l;
@@ -303,13 +422,8 @@ function setLang(l) {
     b.classList.toggle('bg-slate-900', on);
     b.classList.toggle('text-white', on);
   });
-  const t = HEADER_I18N[l];
-  if ($('headerTagline')) $('headerTagline').textContent = t.tagline;
-  if ($('megaBtn')) $('megaBtn').textContent = t.catalog;
-  if ($('navTriage')) $('navTriage').textContent = t.triage;
-  if ($('navSport')) $('navSport').textContent = t.sport;
-  if ($('navEvidence')) $('navEvidence').textContent = t.evidence;
-  if ($('emergencyLabel')) $('emergencyLabel').textContent = t.emergency;
+  applyI18n();
+  updateZoneLabel();
   const grid = $('megaGrid');
   if (grid) delete grid.dataset.loaded;
   if ($('megaMenu') && $('megaMenu').classList.contains('open')) loadConditions();
@@ -338,23 +452,23 @@ function isSafeHttpUrl(u) {
 // ---------- Фото для врача (TASK-008: конверт, не автодиагноз; ids уходят с final-запросом) ----------
 async function uploadPhoto() {
   const inp = $('photoInput'), hint = $('photoHint');
-  if (!$('photoConsent') || !$('photoConsent').checked) { hint.textContent = 'Отметьте согласие «Фото для врача, не автодиагноз» перед загрузкой.'; return; }
-  if (!inp.files || !inp.files.length) { hint.textContent = 'Выберите файл (jpeg/png/webp, до 8 МБ).'; return; }
-  if (state.photoIds.length >= 3) { hint.textContent = 'Уже прикреплено 3 фото — максимум.'; return; }
+  if (!$('photoConsent') || !$('photoConsent').checked) { hint.textContent = t('photoNeedConsent'); return; }
+  if (!inp.files || !inp.files.length) { hint.textContent = t('photoChoose'); return; }
+  if (state.photoIds.length >= 3) { hint.textContent = t('photoMax'); return; }
   const fd = new FormData();
   fd.append('file', inp.files[0]);
-  hint.textContent = 'Загрузка…';
+  hint.textContent = t('photoUploading');
   try {
     const r = await fetch('/api/triage/photo', { method: 'POST', body: fd });
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail || ('HTTP ' + r.status));
     state.photoIds.push(d.photo_id);
     hint.textContent = d.quality === 'ok'
-      ? 'Готово: ' + (d.hint || '')
-      : 'Загружено, но: ' + (d.hint || d.quality) + ' Можно переснять и загрузить заново.';
+      ? t('photoDone') + (d.hint || '')
+      : t('photoWarn') + (d.hint || d.quality) + t('photoRetry');
     inp.value = '';
     renderPhotos();
-  } catch (err) { hint.textContent = 'Ошибка загрузки: ' + err.message; }
+  } catch (err) { hint.textContent = fmt('photoErr', { msg: err.message }); }
 }
 function renderPhotos() {
   const box = $('photoList');
@@ -365,11 +479,11 @@ function renderPhotos() {
     el.className = 'flex items-center gap-1 text-xs border rounded-full pl-2 pr-1 py-0.5 bg-white';
     const label = document.createElement('span');
     label.className = 'font-mono';
-    label.textContent = 'фото ' + (i + 1);
+    label.textContent = fmt('photoItem', { n: i + 1 });
     el.appendChild(label);
     const rm = document.createElement('button');
     rm.className = 'px-2 py-0.5 rounded-full hover:bg-red-100 text-red-700';
-    rm.textContent = '✕ переснять';
+    rm.textContent = t('photoRedo');
     rm.onclick = () => { state.photoIds.splice(i, 1); renderPhotos(); };
     el.appendChild(rm);
     box.appendChild(el);
@@ -417,7 +531,7 @@ function applyPreset(key) {
   $('tagsInput').value = '';
   syncTagButtons();
   setStep(1);
-  addMsg('ai', 'Подставлен шаблон жалобы. Проверьте текст и теги, при необходимости дополните, затем нажмите «Отправить».');
+  addMsg('ai', t('presetApplied'));
 }
 document.querySelectorAll('.presetBtn').forEach(b => b.addEventListener('click', () => applyPreset(b.dataset.preset)));
 
@@ -495,14 +609,14 @@ async function loadConditions() {
     grid.dataset.loaded = '1';
   } catch (err) {
     clearEl(grid);
-    grid.appendChild(makeEl('p', 'text-sm text-red-600', 'Не удалось загрузить каталог. Проверьте, что backend запущен.'));
+    grid.appendChild(makeEl('p', 'text-sm text-red-600', t('megaError')));
   }
 }
 
 // ---------- Зоны тела ----------
 function setZone(z) {
   state.zone = z;
-  $('zoneLabel').textContent = z;
+  updateZoneLabel();
   document.querySelectorAll('#bodyMap .zone').forEach(el => el.classList.toggle('active', el.dataset.zone === z));
   document.querySelectorAll('.zoneBtn').forEach(b => {
     const on = b.dataset.zone === z;
@@ -523,7 +637,7 @@ document.querySelectorAll('.tagBtn').forEach(b => b.addEventListener('click', ()
 
 // ---------- Чат-инпут с кнопкой + ----------
 $('plusBtn').onclick = () => $('plusMenu').classList.toggle('hidden');
-$('plusDiet').onclick = () => { $('dietFlag').checked = true; $('plusMenu').classList.add('hidden'); addMsg('ai', 'Запрос лечебного питания включён — он будет учтён в финальной оценке.'); };
+$('plusDiet').onclick = () => { $('dietFlag').checked = true; $('plusMenu').classList.add('hidden'); addMsg('ai', t('dietPlusMsg')); };
 $('plusClear').onclick = () => { $('chat').innerHTML = ''; $('questions').innerHTML = ''; $('result').classList.add('hidden'); $('plusMenu').classList.add('hidden'); state.answers = {}; state.qIndex = 0; state.photoIds = []; renderPhotos(); setStep(1); setStepQpos(); updateFinalBtn(); };
 $('plusSport').onclick = () => { $('plusMenu').classList.add('hidden'); document.querySelector('#sport').scrollIntoView({behavior: 'smooth'}); };
 
@@ -561,11 +675,11 @@ $('sendBtn').onclick = sendSymptoms;
 $('symptoms').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendSymptoms(); });
 async function sendSymptoms() {
   const p = profile();
-  if (!p.symptoms_text || p.symptoms_text.length < 3) { addMsg('ai', 'Опишите симптомы чуть подробнее (минимум 3 символа).'); return; }
+  if (!p.symptoms_text || p.symptoms_text.length < 3) { addMsg('ai', t('shortSymptoms')); return; }
   addMsg('user', p.symptoms_text);
   setLoading(true);
   // Скелетон только на время реального fetch (без искусственных задержек).
-  $('questions').innerHTML = '<div class="border rounded-xl p-3 bg-white animate-pulse"><div class="h-3 bg-slate-200 rounded w-2/3 mb-2"></div><div class="h-3 bg-slate-200 rounded w-1/2"></div><p class="text-xs text-slate-500 mt-2">Запрос выполняется…</p></div>';
+  $('questions').innerHTML = '<div class="border rounded-xl p-3 bg-white animate-pulse"><div class="h-3 bg-slate-200 rounded w-2/3 mb-2"></div><div class="h-3 bg-slate-200 rounded w-1/2"></div><p class="text-xs text-slate-500 mt-2">' + t('loading') + '</p></div>';
   try {
     const r = await fetch('/api/triage/initial', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -575,10 +689,10 @@ async function sendSymptoms() {
     state.qIndex = 0;
     setStep(2);
     renderOneQuestion();
-    addMsg('ai', 'Отвечайте по одному: ниже вопрос 1 из 3. После третьего станет доступна кнопка «Получить оценку риска».');
+    addMsg('ai', t('answerOne'));
   } catch (err) {
     $('questions').innerHTML = '';
-    addMsg('ai', 'Ошибка запроса: ' + err.message + '. Убедитесь, что сервер запущен (uvicorn app.main:app).');
+    addMsg('ai', fmt('reqError', { msg: err.message }));
   } finally { setLoading(false); }
 }
 function updateFinalBtn() {
@@ -599,12 +713,12 @@ function renderOneQuestion() {
   card.className = 'border rounded-xl p-3 bg-white';
   // TASK-012 XSS: question text/reason/options are server data -> textContent only.
   // Counter line is local ints (safe static skeleton pattern kept as elements).
-  card.appendChild(makeEl('p', 'text-xs text-slate-500 mb-1', 'Вопрос ' + (idx + 1) + ' из ' + state.questions.length));
+  card.appendChild(makeEl('p', 'text-xs text-slate-500 mb-1', fmt('qCounter', { a: idx + 1, b: state.questions.length })));
   card.appendChild(makeEl('p', 'text-sm font-medium mb-1', q.text));
   card.appendChild(makeEl('p', 'text-xs text-slate-500 mb-2', q.reason || ''));
   const row = document.createElement('div');
   row.className = 'flex flex-wrap gap-2';
-  (q.options || ['Да', 'Нет', 'Не уверен(а)']).forEach(opt => {
+  (q.options || [t('optYes'), t('optNo'), t('optUnsure')]).forEach(opt => {
     const b = document.createElement('button');
     b.className = 'ansBtn px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-slate-100';
     if (state.answers[q.id] === opt) b.classList.add('bg-slate-900', 'text-white');
@@ -622,14 +736,14 @@ function renderOneQuestion() {
   if (idx > 0) {
     const back = document.createElement('button');
     back.className = 'px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-slate-100';
-    back.textContent = '← Назад';
+    back.textContent = t('back');
     back.onclick = () => { state.qIndex = idx - 1; renderOneQuestion(); };
     nav.appendChild(back);
   }
   const pos = document.createElement('span');
   pos.className = 'text-xs text-slate-500';
   const done = Object.keys(state.answers).length;
-  pos.textContent = `Отвечено: ${done}/3`;
+  pos.textContent = fmt('answered', { done: done });
   nav.appendChild(pos);
   card.appendChild(nav);
   box.appendChild(card);
@@ -641,29 +755,29 @@ function renderQuestions() { state.qIndex = 0; renderOneQuestion(); }
 // ---------- Триаж: final → шкала и карточки ----------
 $('finalBtn').onclick = async () => {
   if ($('consentCheck') && !$('consentCheck').checked) {
-    addMsg('ai', 'Подтвердите согласие: «Я понимаю, что это не диагноз» — отметьте галочку перед оценкой.');
+    addMsg('ai', t('consentFirst'));
     return;
   }
   const p = profile();
-  const payload = { ...p, photo_ids: [...state.photoIds], answers: state.questions.map(q => ({ question_id: q.id, answer: state.answers[q.id] || 'Не уверен(а)' })) };
+  const payload = { ...p, photo_ids: [...state.photoIds], answers: state.questions.map(q => ({ question_id: q.id, answer: state.answers[q.id] || t('unsureFallback') })) };
   setLoading(true);
   try {
     const r = await fetch('/api/triage/final', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
     renderResult(d);
-    addMsg('ai', `Предварительная оценка (не диагноз): уровень ${d.triage_level}, эвристический балл ${d.risk_score}. Обсудите с врачом — детали в карточке ниже, включая «Как мы посчитали».`);
+    addMsg('ai', fmt('finalMsg', { level: d.triage_level, score: d.risk_score }));
     document.querySelector('#result').scrollIntoView({behavior: 'smooth'});
   } catch (err) {
-    addMsg('ai', 'Ошибка оценки: ' + err.message);
+    addMsg('ai', fmt('finalErr', { msg: err.message }));
   } finally { setLoading(false); }
 };
 const LV_COLOR = { GREEN: 'bg-green-600', YELLOW: 'bg-yellow-500', ORANGE: 'bg-orange-600', RED: 'bg-red-600' };
 function bandLabel(prob) {
   const p = Number(prob);
-  if (p < 30) return 'низкая';
-  if (p <= 60) return 'средняя';
-  return 'высокая';
+  if (p < 30) return t('bandLow');
+  if (p <= 60) return t('bandMid');
+  return t('bandHigh');
 }
 function renderResult(d) {
   $('result').classList.remove('hidden');
@@ -675,20 +789,20 @@ function renderResult(d) {
   if (pb) {
     if (d.photos_attached && d.photos_attached.length) {
       pb.classList.remove('hidden');
-      pb.textContent = 'Фото для врача, не автодиагноз (' + d.photos_attached.length + '): '
+      pb.textContent = fmt('photosForDoctor', { n: d.photos_attached.length })
         + d.photos_attached.map(a => a.photo_id.slice(0, 8) + '… [' + a.quality + ']').join(', ');
     } else pb.classList.add('hidden');
   }
   const badge = $('triageBadge');
   badge.textContent = d.triage_level;
   badge.className = 'px-3 py-1 rounded-full font-bold text-white ' + (LV_COLOR[d.triage_level] || 'bg-slate-600');
-  $('riskScore').textContent = d.risk_score + ' (эвристический балл, не вероятность диагноза)';
+  $('riskScore').textContent = d.risk_score + t('riskSuffix');
   const riskNum = Math.min(100, Math.max(0, Number(d.risk_score) || 0));
   $('riskMarker').style.left = 'calc(' + riskNum + '% - 3px)';
   $('bmiVal').textContent = d.bmi;
   $('bmiCat').textContent = d.bmi_category;
   const eb = $('emergencyBanner');
-  if (d.emergency_call) { eb.classList.remove('hidden'); eb.textContent = 'Требуется срочная помощь: при ухудшении вызывайте 103/112. ' + (d.triage_level === 'RED' ? 'Не садитесь за руль, обеспечьте покой.' : 'Обратитесь к врачу в ближайшие часы.'); }
+  if (d.emergency_call) { eb.classList.remove('hidden'); eb.textContent = t('emBanner') + (d.triage_level === 'RED' ? t('emBannerRed') : t('emBannerOrange')); }
   else eb.classList.add('hidden');
   const conds = $('conds'); clearEl(conds);
   d.probable_conditions.forEach(c => {
@@ -709,7 +823,7 @@ function renderResult(d) {
     barWrap.appendChild(bar);
     el.appendChild(barWrap);
     el.appendChild(makeEl('div', 'text-xs text-slate-600 mt-1',
-      'вероятность: ' + bandLabel(c.probability) + ' (возможная причина, не диагноз) · ' + (c.reason || '')));
+      t('probPrefix') + bandLabel(c.probability) + t('probMid') + (c.reason || '')));
     conds.appendChild(el);
   });
   // TASK-012 XSS: diet/actions/forbidden/evidence/breakdown are server data -> DOM only.
@@ -719,9 +833,9 @@ function renderResult(d) {
   dietBox.appendChild(makeEl('p', 'mt-1 text-slate-600', d.diet.reason || ''));
   if (d.diet.warning) dietBox.appendChild(makeEl('p', 'mt-1 font-semibold text-red-700', d.diet.warning));
   const dietLists = [
-    ['Рекомендуется:', d.diet.recommended],
-    ['Исключить:', d.diet.forbidden],
-    ['Пример меню:', d.diet.menu_example],
+    [t('recTitle'), d.diet.recommended],
+    [t('excTitle'), d.diet.forbidden],
+    [t('menuTitle'), d.diet.menu_example],
   ];
   for (const [title, items] of dietLists) {
     if (items && items.length) {
@@ -754,7 +868,7 @@ function renderResult(d) {
   if (d.score_breakdown && d.score_breakdown.length) {
     d.score_breakdown.forEach(b => bdBox.appendChild(makeEl('li', null, b.reason + ' — +' + b.points)));
   } else {
-    bdBox.appendChild(makeEl('li', 'text-slate-500', 'Дополнительных баллов нет — базовый уровень.'));
+    bdBox.appendChild(makeEl('li', 'text-slate-500', t('noExtraPoints')));
   }
 }
 
@@ -763,7 +877,7 @@ $('sportBtn').onclick = async () => {
   const out = $('sportOut');
   out.classList.remove('hidden');
   // Static skeleton (no server data) may stay as literal markup.
-  out.innerHTML = '<p class="text-slate-500 loader-dots">Расчёт <span></span><span></span><span></span></p>';
+  out.innerHTML = '<p class="text-slate-500 loader-dots">' + t('calcSkeleton') + ' <span></span><span></span><span></span></p>';
   const body = {
     age: +$('age').value || 30, sex: $('sex').value,
     height_cm: +$('height').value || 175, weight_kg: +$('weight').value || 78,
@@ -784,12 +898,12 @@ $('sportBtn').onclick = async () => {
       if (extra) cell.appendChild(makeEl('span', 'text-xs', ' (' + extra + ')'));
       return cell;
     };
-    grid.appendChild(stat('ИМТ', d.bmi, d.bmi_category));
-    grid.appendChild(stat('BMR', d.bmr_kcal + ' ккал'));
-    grid.appendChild(stat('TDEE', d.tdee_kcal + ' ккал'));
-    grid.appendChild(stat('Цель', d.target_kcal + ' ккал'));
+    grid.appendChild(stat(t('statBmi'), d.bmi, d.bmi_category));
+    grid.appendChild(stat(t('statBmr'), d.bmr_kcal + t('kcal')));
+    grid.appendChild(stat(t('statTdee'), d.tdee_kcal + t('kcal')));
+    grid.appendChild(stat(t('statTarget'), d.target_kcal + t('kcal')));
     out.appendChild(grid);
-    const tempo = makeEl('p', null, 'Темп: ' + d.weekly_tempo_kg);
+    const tempo = makeEl('p', null, t('tempo') + d.weekly_tempo_kg);
     out.appendChild(tempo);
     out.appendChild(makeEl('p', 'text-slate-600', d.timeline_text));
     const listBlock = (title, items, cls) => {
@@ -798,11 +912,11 @@ $('sportBtn').onclick = async () => {
       items.forEach(x => ul.appendChild(makeEl('li', null, x)));
       out.appendChild(ul);
     };
-    listBlock('Тренировки:', d.training_plan || []);
-    listBlock('Питание:', d.nutrition_hint || []);
-    if (d.contraindications && d.contraindications.length) listBlock('Противопоказания:', d.contraindications, 'text-red-900');
-    if (d.warnings && d.warnings.length) listBlock('Предупреждения:', d.warnings, 'text-amber-900');
-  } catch (err) { clearEl(out); out.appendChild(makeEl('p', 'text-red-600', 'Ошибка расчёта: ' + err.message)); }
+    listBlock(t('trainTitle'), d.training_plan || []);
+    listBlock(t('foodTitle'), d.nutrition_hint || []);
+    if (d.contraindications && d.contraindications.length) listBlock(t('contraTitle'), d.contraindications, 'text-red-900');
+    if (d.warnings && d.warnings.length) listBlock(t('warnTitle'), d.warnings, 'text-amber-900');
+  } catch (err) { clearEl(out); out.appendChild(makeEl('p', 'text-red-600', fmt('sportErr', { msg: err.message }))); }
 };
 </script>
 </body>
