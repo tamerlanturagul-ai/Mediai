@@ -191,6 +191,20 @@ class SportPlanRequest(BaseModel):
     goal: SportGoal = "lose"
     activity_level: ActivityLevel = "light"
     contraindications: List[str] = Field(default_factory=list)
+    lang: Lang = Field(default="ru", description="Язык ответа: ru/en/kz")
+    # TASK-007: PAR-Q screening (defaults = no positive answers).
+    parq_chest_pain: bool = False
+    parq_dizziness: bool = False
+    parq_joint_problem: bool = False
+    parq_heart_condition: bool = False
+    parq_diabetes: bool = False
+    parq_age50_unsupervised: bool = False
+    parq_other: str = Field(default="")
+
+    @field_validator("lang", mode="before")
+    @classmethod
+    def _coerce_lang(cls, v):  # type: ignore[no-untyped-def]
+        return map_lang(v if isinstance(v, str) else "ru")
 
 
 class SportPlanResponse(BaseModel):
@@ -206,3 +220,4 @@ class SportPlanResponse(BaseModel):
     nutrition_hint: List[str]
     contraindications: List[str]
     warnings: List[str]
+    lang: Lang = Field(default="ru")
