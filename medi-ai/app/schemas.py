@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from typing import Dict, List, Literal, Optional
+from typing import Annotated, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -74,8 +74,9 @@ class TriageInitialRequest(BaseModel):
     height_cm: float = Field(..., ge=50, le=250)
     weight_kg: float = Field(..., ge=20, le=300)
     body_zone: str = Field(..., min_length=1, description="Зона тела: chest/abdomen/head/skin/limb и т.д.")
-    symptoms_text: str = Field(..., min_length=3, description="Свободный текст симптомов")
-    tags: List[str] = Field(default_factory=list)
+    # TASK-009 P0: bound free text (DoS-sized bodies -> 422, not worker OOM).
+    symptoms_text: str = Field(..., min_length=3, max_length=4000, description="Свободный текст симптомов")
+    tags: List[Annotated[str, Field(max_length=64)]] = Field(default_factory=list, max_length=20)
     request_diet: bool = False
     lang: Lang = Field(default="ru", description="Язык ответа: ru/en/kz")
 
@@ -115,8 +116,9 @@ class TriageFinalRequest(BaseModel):
     height_cm: float = Field(..., ge=50, le=250)
     weight_kg: float = Field(..., ge=20, le=300)
     body_zone: str = Field(..., min_length=1)
-    symptoms_text: str = Field(..., min_length=3)
-    tags: List[str] = Field(default_factory=list)
+    # TASK-009 P0: same bounds as TriageInitialRequest (4000 chars, 20x64 tags).
+    symptoms_text: str = Field(..., min_length=3, max_length=4000)
+    tags: List[Annotated[str, Field(max_length=64)]] = Field(default_factory=list, max_length=20)
     request_diet: bool = False
     answers: List[TriageAnswer] = Field(..., min_length=3, max_length=3)
     lang: Lang = Field(default="ru")
@@ -146,12 +148,13 @@ class PhotoAttachment(BaseModel):
     """Photo attached to the triage result FOR THE DOCTOR (not a diagnosis)."""
 
     photo_id: str
-    quality: Literal["ok", "too_dark", "too_blurry"]
+    # TASK-009: "unknown" = stored file became unreadable (never silent "ok").
+    quality: Literal["ok", "too_dark", "too_blurry", "unknown"]
 
 
 class PhotoUploadResponse(BaseModel):
     photo_id: str
-    quality: Literal["ok", "too_dark", "too_blurry"]
+    quality: Literal["ok", "too_dark", "too_blurry", "unknown"]
     hint: str = ""
 
 

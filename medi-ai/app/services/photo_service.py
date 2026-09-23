@@ -28,12 +28,20 @@ from __future__ import annotations
 
 import io
 import uuid
+import warnings
 from pathlib import Path
 from typing import Dict, Literal, Optional, Tuple
 
 from PIL import Image, ImageChops, ImageFilter
+from PIL.Image import DecompressionBombError, DecompressionBombWarning
 
-PhotoQuality = Literal["ok", "too_dark", "too_blurry"]
+# TASK-009 P0: hard pixel cap against decompression bombs (default Pillow
+# limit is ~178 MP). Anything above is rejected in save_photo (422);
+# warnings are escalated to errors so the 40 MP bound is strict.
+Image.MAX_IMAGE_PIXELS = 40_000_000
+MAX_IMAGE_PIXELS = Image.MAX_IMAGE_PIXELS
+
+PhotoQuality = Literal["ok", "too_dark", "too_blurry", "unknown"]
 
 # --- storage ---
 UPLOAD_DIR = Path(__file__).resolve().parents[1] / "uploads"
@@ -51,6 +59,8 @@ HINTS: Dict[str, str] = {
     "ok": "Качество достаточное для врача.",
     "too_dark": "Фото слишком тёмное — переснимите при хорошем освещении.",
     "too_blurry": "Фото размыто — держите камеру неподвижно и переснимите.",
+    # TASK-009: stored file became unreadable after upload (never silent "ok").
+    "unknown": "Не удалось оценить качество фото.",
 }
 
 # In-memory cache photo_id -> quality (source of truth for quality;
@@ -116,7 +126,9 @@ def get_photo_info(photo_id: str) -> Optional[Dict[str, str]]:
                     img.load()
                     quality, _, _ = assess_quality(img)
             except Exception:
-                quality = "ok"
+                # TASK-009 P0: a corrupt/unreadable stored file must NEVER
+                # report a silent "ok" — quality is honestly "unknown".
+                quality = "unknown"
             _META[photo_id] = {"quality": quality}
             return {"photo_id": photo_id, "quality": quality}
     return None
@@ -132,7 +144,7 @@ def save_photo(data: bytes, content_type: str | None, filename: str | None) -> D
     """Validate, store and assess an uploaded image.
 
     Raises PhotoUploadError with status_code 413 (oversize), 400 (wrong
-    type) or 422 (unreadable image).
+    type) or 422 (unreadable image / pixel-bomb over MAX_IMAGE_PIXELS).
     Returns {photo_id, quality, hint}.
     """
     if len(data) > MAX_PHOTO_BYTES:
@@ -147,16 +159,31 @@ def save_photo(data: bytes, content_type: str | None, filename: str | None) -> D
             "Недопустимый тип файла: разрешены jpeg/png/webp.",
             status_code=400,
         )
-    try:
-        img = Image.open(io.BytesIO(data))
-        img.load()
-        fmt = img.format
-    except Exception as exc:
-        raise PhotoUploadError("Файл не является изображением.", status_code=422) from exc
+    # TASK-009 P0: escalate DecompressionBombWarning to an error so the
+    # 40 MP cap is enforced strictly (Pillow only warns between 1x and 2x).
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DecompressionBombWarning)
+        try:
+            img = Image.open(io.BytesIO(data))
+            img.load()
+            fmt = img.format
+        except (DecompressionBombError, DecompressionBombWarning) as exc:
+            raise PhotoUploadError(
+                "Изображение отклонено: превышен лимит размера.",
+                status_code=422,
+            ) from exc
+        except Exception as exc:
+            raise PhotoUploadError("Файл не является изображением.", status_code=422) from exc
     if fmt not in _FORMAT_TO_EXT:
         raise PhotoUploadError(
             "Недопустимый тип файла: разрешены jpeg/png/webp.",
             status_code=400,
+        )
+    # Backstop: explicit pixel count (some decoders may not warn).
+    if img.width * img.height > MAX_IMAGE_PIXELS:
+        raise PhotoUploadError(
+            "Изображение отклонено: превышен лимит размера.",
+            status_code=422,
         )
     quality, _, _ = assess_quality(img)
     photo_id = str(uuid.uuid4())
