@@ -227,3 +227,12 @@ medi-ai/app/uploads/
 _PRIVATE_PLAN_DO_NOT_COMMIT.md
 ANTREK*.md
 *DO_NOT_COMMIT*
+
+# MediAI demo-local drops — NEVER commit (source files stay on the laptop).
+# NOTE: this ignores only the ROOT drop (/logo.png); the site asset
+# medi-ai/app/static/logo.png MUST be committed.
+/logo.png
+photo_*.jpg
+photo_*.jpeg
+presentation-*.html
+AGENTS.md
