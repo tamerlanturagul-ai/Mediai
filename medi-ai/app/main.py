@@ -4,19 +4,28 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .schemas import (
     ConditionsResponse,
+    PhotoAttachment,
+    PhotoUploadResponse,
     SportPlanRequest,
     SportPlanResponse,
     TriageFinalRequest,
     TriageFinalResponse,
     TriageInitialRequest,
     TriageInitialResponse,
+)
+from .services.photo_service import (
+    MAX_PHOTOS_PER_TRIAGE,
+    PhotoUploadError,
+    get_photo_info,
+    photo_exists,
+    save_photo,
 )
 from .sport_engine import build_sport_plan
 from .triage_engine import (
@@ -93,8 +102,37 @@ def triage_initial(req: TriageInitialRequest) -> TriageInitialResponse:
     return TriageInitialResponse(questions=questions, lang=lang)  # type: ignore[arg-type]
 
 
+@app.post("/api/triage/photo", response_model=PhotoUploadResponse)
+async def triage_photo(file: UploadFile = File(...)) -> PhotoUploadResponse:
+    """Store a photo envelope for the doctor (TASK-008, B4-variant-1).
+
+    Accepts jpeg/png/webp up to 8 MB. Returns {photo_id, quality, hint}.
+    The image is NEVER a diagnostic signal: quality is a Pillow-only
+    capture hint (ok | too_dark | too_blurry), no ML, no diagnosis.
+    """
+    data = await file.read()
+    try:
+        saved = save_photo(data, file.content_type, file.filename)
+    except PhotoUploadError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    return PhotoUploadResponse(**saved)
+
+
 @app.post("/api/triage/final", response_model=TriageFinalResponse)
 def triage_final(req: TriageFinalRequest) -> TriageFinalResponse:
+    # TASK-008: photo_ids are validated here (UUID format + max 3 already
+    # enforced by schema). Unknown ids -> 422. Attached photos are carried
+    # into the response "for the doctor" and MUST NOT change the score —
+    # evaluate_final never sees photo_ids.
+    if len(req.photo_ids) > MAX_PHOTOS_PER_TRIAGE:
+        raise HTTPException(status_code=422, detail="Можно прикрепить не более 3 фото")
+    attached: list[PhotoAttachment] = []
+    for pid in req.photo_ids:
+        info = get_photo_info(pid)
+        if info is None and not photo_exists(pid):
+            raise HTTPException(status_code=422, detail=f"Неизвестный photo_id '{pid}'")
+        info = info or {"photo_id": pid, "quality": "ok"}
+        attached.append(PhotoAttachment(photo_id=info["photo_id"], quality=info["quality"]))  # type: ignore[arg-type]
     try:
         result = evaluate_final(req)
     except Exception as exc:  # fail-safe с понятным сообщением
@@ -115,6 +153,7 @@ def triage_final(req: TriageFinalRequest) -> TriageFinalResponse:
         lang=lang,  # type: ignore[arg-type]
         score_breakdown=result.get("score_breakdown", []),
         rules_version=result.get("rules_version", "1.1"),
+        photos_attached=attached,
     )
 
 

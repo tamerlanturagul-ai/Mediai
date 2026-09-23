@@ -219,3 +219,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# MediAI (TASK-008): uploaded patient photos — never commit.
+medi-ai/uploads/
+
+# MediAI private orchestrator plan — NEVER commit/push
+_PRIVATE_PLAN_DO_NOT_COMMIT.md
+ANTREK*.md
+*DO_NOT_COMMIT*

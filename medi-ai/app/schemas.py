@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
@@ -119,11 +120,39 @@ class TriageFinalRequest(BaseModel):
     request_diet: bool = False
     answers: List[TriageAnswer] = Field(..., min_length=3, max_length=3)
     lang: Lang = Field(default="ru")
+    # TASK-008: photo envelope for the doctor (B4-variant-1). Ids only —
+    # images NEVER influence score/conditions/diet (see evaluate_final).
+    photo_ids: List[str] = Field(default_factory=list, max_length=3)
 
     @field_validator("lang", mode="before")
     @classmethod
     def _coerce_lang(cls, v):  # type: ignore[no-untyped-def]
         return map_lang(v if isinstance(v, str) else "ru")
+
+    @field_validator("photo_ids")
+    @classmethod
+    def _validate_photo_ids(cls, v):  # type: ignore[no-untyped-def]
+        if len(v) > 3:
+            raise ValueError("Можно прикрепить не более 3 фото")
+        for pid in v:
+            try:
+                uuid.UUID(str(pid))
+            except (ValueError, AttributeError, TypeError):
+                raise ValueError(f"Некорректный photo_id '{pid}': ожидается UUID")
+        return v
+
+
+class PhotoAttachment(BaseModel):
+    """Photo attached to the triage result FOR THE DOCTOR (not a diagnosis)."""
+
+    photo_id: str
+    quality: Literal["ok", "too_dark", "too_blurry"]
+
+
+class PhotoUploadResponse(BaseModel):
+    photo_id: str
+    quality: Literal["ok", "too_dark", "too_blurry"]
+    hint: str = ""
 
 
 class ProbableCondition(BaseModel):
@@ -170,6 +199,9 @@ class TriageFinalResponse(BaseModel):
     # TASK-004: transparency — how the score was counted + rules version.
     score_breakdown: List[ScoreBreakdownItem] = Field(default_factory=list)
     rules_version: str = Field(default="1.1")
+    # TASK-008: photos attached "for the doctor". Carried through only —
+    # MUST NOT change score/conditions/diet (asserted in test_photo_upload.py).
+    photos_attached: List[PhotoAttachment] = Field(default_factory=list)
 
 
 class ConditionItem(BaseModel):
