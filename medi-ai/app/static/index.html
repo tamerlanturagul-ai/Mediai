@@ -458,6 +458,7 @@ async function uploadPhoto() {
   const fd = new FormData();
   fd.append('file', inp.files[0]);
   hint.textContent = t('photoUploading');
+  setLoading(true);
   try {
     const r = await fetch('/api/triage/photo', { method: 'POST', body: fd });
     const d = await r.json();
@@ -469,6 +470,7 @@ async function uploadPhoto() {
     inp.value = '';
     renderPhotos();
   } catch (err) { hint.textContent = fmt('photoErr', { msg: err.message }); }
+  finally { setLoading(false); }
 }
 function renderPhotos() {
   const box = $('photoList');
@@ -484,7 +486,15 @@ function renderPhotos() {
     const rm = document.createElement('button');
     rm.className = 'px-2 py-0.5 rounded-full hover:bg-red-100 text-red-700';
     rm.textContent = t('photoRedo');
-    rm.onclick = () => { state.photoIds.splice(i, 1); renderPhotos(); };
+    // TASK-019 M1: remove also DELETEs the envelope server-side (best-effort —
+    // UI splice happens regardless, even if DELETE fails).
+    rm.onclick = async () => {
+      const pid = state.photoIds[i];
+      state.photoIds.splice(i, 1);
+      renderPhotos();
+      try { await fetch('/api/triage/photo/' + encodeURIComponent(pid), { method: 'DELETE' }); }
+      catch (err) { /* best-effort: UI already updated */ }
+    };
     el.appendChild(rm);
     box.appendChild(el);
   });
@@ -638,7 +648,48 @@ document.querySelectorAll('.tagBtn').forEach(b => b.addEventListener('click', ()
 // ---------- Чат-инпут с кнопкой + ----------
 $('plusBtn').onclick = () => $('plusMenu').classList.toggle('hidden');
 $('plusDiet').onclick = () => { $('dietFlag').checked = true; $('plusMenu').classList.add('hidden'); addMsg('ai', t('dietPlusMsg')); };
-$('plusClear').onclick = () => { $('chat').innerHTML = ''; $('questions').innerHTML = ''; $('result').classList.add('hidden'); $('plusMenu').classList.add('hidden'); state.answers = {}; state.qIndex = 0; state.photoIds = []; renderPhotos(); setStep(1); setStepQpos(); updateFinalBtn(); };
+// ---------- TASK-019 M2: full demo reset (state.lang stays; i18n re-applied, no RU snap-back) ----------
+function resetChatGreeting() {
+  const chat = $('chat');
+  clearEl(chat);
+  const g = document.createElement('div');
+  g.id = 'chatGreeting';
+  g.className = 'self-start max-w-[85%] bg-white border rounded-xl px-3 py-2 text-sm';
+  g.dataset.i18n = 'greeting';
+  chat.appendChild(g);
+  applyI18n();
+}
+$('plusClear').onclick = () => {
+  resetChatGreeting();
+  $('questions').innerHTML = '';
+  $('result').classList.add('hidden');
+  $('plusMenu').classList.add('hidden');
+  state.answers = {};
+  state.questions = [];
+  state.qIndex = 0;
+  state.photoIds = [];
+  state.tags.clear();
+  if ($('tagsInput')) $('tagsInput').value = '';
+  syncTagButtons();
+  setZone('живот');
+  if ($('symptoms')) $('symptoms').value = '';
+  if ($('consentCheck')) $('consentCheck').checked = false;
+  if ($('dietFlag')) $('dietFlag').checked = false;
+  if ($('photoInput')) $('photoInput').value = '';
+  if ($('photoHint')) $('photoHint').textContent = '';
+  renderPhotos();
+  const out = $('sportOut');
+  if (out) { clearEl(out); out.classList.add('hidden'); }
+  const eb = $('emergencyBanner');
+  if (eb) eb.classList.add('hidden');
+  const pb = $('photosBox');
+  if (pb) pb.classList.add('hidden');
+  const rm = $('riskMarker');
+  if (rm) rm.style.left = 'calc(0% - 3px)';
+  setStep(1);
+  setStepQpos();
+  updateFinalBtn();
+};
 $('plusSport').onclick = () => { $('plusMenu').classList.add('hidden'); document.querySelector('#sport').scrollIntoView({behavior: 'smooth'}); };
 
 function addMsg(who, text) {
@@ -650,10 +701,24 @@ function addMsg(who, text) {
   $('chat').appendChild(d);
   $('chat').scrollTop = $('chat').scrollHeight;
 }
+// ---------- TASK-019 demo robustness: in-flight counter + finalize predicate ----------
+const busy = { count: 0 };
+function canFinalize() {
+  const okAnswers = Object.keys(state.answers).length === 3;
+  const okConsent = $('consentCheck') ? $('consentCheck').checked : false;
+  return okAnswers && okConsent;
+}
 function setLoading(on) {
-  $('loader').classList.toggle('hidden', !on);
-  $('loader').classList.toggle('flex', on);
-  $('sendBtn').disabled = on;
+  // TASK-019 demo robustness: global in-flight guard — while ANY request runs,
+  // all action buttons stay disabled, so no parallel POSTs (double-click safe).
+  busy.count = Math.max(0, busy.count + (on ? 1 : -1));
+  const b = busy.count > 0;
+  $('loader').classList.toggle('hidden', !b);
+  $('loader').classList.toggle('flex', b);
+  $('sendBtn').disabled = b;
+  if ($('finalBtn')) $('finalBtn').disabled = b || !canFinalize();
+  if ($('sportBtn')) $('sportBtn').disabled = b;
+  if ($('photoUploadBtn')) $('photoUploadBtn').disabled = b;
 }
 function profile() {
   const extra = $('tagsInput').value.split(',').map(s => s.trim()).filter(Boolean);
@@ -696,9 +761,8 @@ async function sendSymptoms() {
   } finally { setLoading(false); }
 }
 function updateFinalBtn() {
-  const okAnswers = Object.keys(state.answers).length === 3;
-  const okConsent = $('consentCheck') ? $('consentCheck').checked : false;
-  $('finalBtn').disabled = !(okAnswers && okConsent);
+  if (busy.count > 0) { $('finalBtn').disabled = true; setStepQpos(); return; }
+  $('finalBtn').disabled = !canFinalize();
   setStepQpos();
 }
 if ($('consentCheck')) $('consentCheck').addEventListener('change', updateFinalBtn);
@@ -754,6 +818,7 @@ function renderQuestions() { state.qIndex = 0; renderOneQuestion(); }
 
 // ---------- Триаж: final → шкала и карточки ----------
 $('finalBtn').onclick = async () => {
+  if (busy.count > 0) return;
   if ($('consentCheck') && !$('consentCheck').checked) {
     addMsg('ai', t('consentFirst'));
     return;
@@ -874,6 +939,7 @@ function renderResult(d) {
 
 // ---------- Спорт ----------
 $('sportBtn').onclick = async () => {
+  if (busy.count > 0) return;
   const out = $('sportOut');
   out.classList.remove('hidden');
   // Static skeleton (no server data) may stay as literal markup.
@@ -884,6 +950,7 @@ $('sportBtn').onclick = async () => {
     goal: $('goal').value, activity_level: $('activity').value, contraindications: [],
     lang: state.lang,
   };
+  setLoading(true);
   try {
     const r = await fetch('/api/sport/plan', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -917,6 +984,7 @@ $('sportBtn').onclick = async () => {
     if (d.contraindications && d.contraindications.length) listBlock(t('contraTitle'), d.contraindications, 'text-red-900');
     if (d.warnings && d.warnings.length) listBlock(t('warnTitle'), d.warnings, 'text-amber-900');
   } catch (err) { clearEl(out); out.appendChild(makeEl('p', 'text-red-600', fmt('sportErr', { msg: err.message }))); }
+  finally { setLoading(false); }
 };
 </script>
 </body>
