@@ -4,251 +4,259 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MediAI — первичный клинический триаж</title>
+  <link rel="preload" href="/static/fonts/golostext-cyrillic-400.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/static/fonts/golostext-latin-400.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/static/tailwind.css" />
   <style>
-    .zone { cursor: pointer; transition: fill .15s ease, opacity .15s ease; }
-    .zone:hover { opacity: .75; }
-    .zone.active { fill: #2563eb !important; }
-    .loader-dots span { width: 8px; height: 8px; border-radius: 9999px; background: #64748b; display: inline-block; animation: bounce 1.2s infinite; }
-    .loader-dots span:nth-child(2) { animation-delay: .15s; }
-    .loader-dots span:nth-child(3) { animation-delay: .3s; }
-    @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-6px); opacity: 1; } }
-    .mega { display: none; }
-    .mega.open { display: block; }
     .chat-scroll { scrollbar-width: thin; }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col">
 
-  <!-- ===== Header ===== -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
-      <a href="/" class="text-2xl font-extrabold text-blue-700">MediAI</a>
-      <span class="hidden md:inline text-xs text-slate-500">первичный клинический триаж · доказательная медицина</span>
-      <nav class="ml-auto flex items-center gap-2 text-sm">
+  <!-- ===== Masthead ===== -->
+  <header class="masthead sticky top-0 z-40">
+    <div class="wrap mx-auto px-4 py-3 flex items-center gap-4">
+      <a href="/" class="wm ed-ink">MediAI</a>
+      <span class="hidden md:inline sub">первичный клинический триаж · доказательная медицина</span>
+      <nav class="ml-auto flex items-center gap-1 text-sm">
         <div class="relative">
-          <button id="megaBtn" class="px-3 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-700">Каталог болезней ▾</button>
+          <button id="megaBtn" class="btn-sec">Каталог болезней ▾</button>
         </div>
-        <a href="#triage" class="px-3 py-2 rounded-lg hover:bg-slate-100">Триаж</a>
-        <a href="#sport" class="px-3 py-2 rounded-lg hover:bg-slate-100">Спорт</a>
-        <a href="#evidence" class="hidden md:inline px-3 py-2 rounded-lg hover:bg-slate-100">Источники</a>
-        <span class="px-3 py-2 rounded-lg bg-red-50 text-red-700 font-semibold">Скорая: 103</span>
+        <a href="#triage" class="btn-ter">Триаж</a>
+        <a href="#sport" class="btn-ter">Спорт</a>
+        <a href="#evidence" class="hidden md:inline btn-ter">Источники</a>
+        <div id="langRow" class="seg" role="group" aria-label="Язык интерфейса">
+          <button data-lang="ru" class="seg-btn">RU</button>
+          <button data-lang="en" class="seg-btn">EN</button>
+          <button data-lang="kz" class="seg-btn">KZ</button>
+        </div>
+        <span class="px-2 py-1 text-sm font-semibold ed-err">Скорая: 103</span>
       </nav>
     </div>
     <!-- WebMD мега-меню: 4 колонки, данные из GET /api/conditions -->
-    <div id="megaMenu" class="mega absolute left-0 right-0 top-full bg-white border-b border-slate-200 shadow-xl z-40">
-      <div class="max-w-7xl mx-auto px-4 py-6">
+    <div id="megaMenu" class="mega absolute left-0 right-0 top-full sec" style="border-left:0;border-right:0;border-radius:0">
+      <div class="wrap mx-auto px-4 py-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="font-bold text-lg">Каталог заболеваний <span class="text-xs font-normal text-slate-500">с кодами МКБ-10</span></h2>
-          <button id="megaClose" class="text-sm text-slate-500 hover:text-slate-900">Закрыть ✕</button>
+          <h2 class="h-card ed-ink">Каталог заболеваний <span class="text-xs font-normal ed-muted">с кодами МКБ-10</span></h2>
+          <button id="megaClose" class="btn-ter text-sm">Закрыть ✕</button>
         </div>
         <div id="megaGrid" class="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <p class="text-sm text-slate-500 loader-dots">Загрузка каталога <span></span><span></span><span></span></p>
+          <p class="text-sm ed-muted loader-dots">Загрузка каталога <span></span><span></span><span></span></p>
         </div>
       </div>
     </div>
   </header>
 
-  <!-- ===== Layout: сайдбар + контент ===== -->
-  <div class="max-w-7xl mx-auto px-4 py-6 w-full grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 flex-1">
+  <!-- ===== Layout: одна editorial-колонка, чат — герой ===== -->
+  <div class="wrap mx-auto px-4 py-6 w-full flex-1">
 
-    <!-- ===== Сайдбар: профиль ===== -->
-    <aside class="bg-white rounded-2xl border border-slate-200 p-5 h-fit lg:sticky lg:top-20">
-      <h2 class="font-bold mb-3">Профиль пациента</h2>
-      <div class="grid grid-cols-2 gap-3 text-sm">
-        <label class="block">Возраст
-          <input id="age" type="number" min="0" max="120" value="35" class="mt-1 w-full border rounded-lg px-2 py-1.5" />
-        </label>
-        <label class="block">Пол
-          <select id="sex" class="mt-1 w-full border rounded-lg px-2 py-1.5">
-            <option value="male">Мужской</option>
-            <option value="female">Женский</option>
-          </select>
-        </label>
-        <label class="block">Рост, см
-          <input id="height" type="number" min="50" max="250" value="175" class="mt-1 w-full border rounded-lg px-2 py-1.5" />
-        </label>
-        <label class="block">Вес, кг
-          <input id="weight" type="number" min="20" max="300" value="78" class="mt-1 w-full border rounded-lg px-2 py-1.5" />
-        </label>
-      </div>
-      <label class="mt-3 flex items-center gap-2 text-sm">
-        <input id="dietFlag" type="checkbox" class="w-4 h-4" /> Запросить лечебное питание
-      </label>
-      <div class="mt-3 text-sm">
-        <p class="font-semibold mb-1">Теги симптомов</p>
-        <div class="flex flex-wrap gap-1.5" id="tagRow">
-          <button data-tag="острая боль" class="tagBtn px-2 py-1 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">острая боль</button>
-          <button data-tag="лихорадка" class="tagBtn px-2 py-1 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">лихорадка</button>
-          <button data-tag="тошнота" class="tagBtn px-2 py-1 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">тошнота</button>
-          <button data-tag="одышка" class="tagBtn px-2 py-1 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">одышка</button>
-          <button data-tag="сыпь" class="tagBtn px-2 py-1 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">сыпь</button>
+    <!-- Semaphore step-rail (signature move): шаги 1-2-3 -->
+    <ol id="steps" class="rail mb-3" aria-label="Этапы триажа">
+      <li data-step="1" data-state="now"><span class="rail-n">1</span><span class="rail-t">Шаг 1 — профиль и симптомы</span></li>
+      <li data-step="2" data-state="todo"><span class="rail-n">2</span><span class="rail-t">Шаг 2 — уточнение: вопрос <span id="stepQpos" class="tnum">–</span>/3</span></li>
+      <li data-step="3" data-state="todo"><span class="rail-n">3</span><span class="rail-t">Шаг 3 — оценка + как посчитали</span></li>
+    </ol>
+
+    <div class="flow-grid">
+    <main class="sec-gap min-w-0">
+
+      <!-- ===== Профиль: тихая ruled-секция ===== -->
+      <section class="sec-quiet pt-4">
+        <h2 class="h-sec ed-ink mb-3">Профиль пациента</h2>
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <label class="block">Возраст
+            <input id="age" type="number" min="0" max="120" value="35" class="inp mt-1 w-full px-2 py-1.5" />
+          </label>
+          <label class="block">Пол
+            <select id="sex" class="inp mt-1 w-full px-2 py-1.5">
+              <option value="male">Мужской</option>
+              <option value="female">Женский</option>
+            </select>
+          </label>
+          <label class="block">Рост, см
+            <input id="height" type="number" min="50" max="250" value="175" class="inp mt-1 w-full px-2 py-1.5" />
+          </label>
+          <label class="block">Вес, кг
+            <input id="weight" type="number" min="20" max="300" value="78" class="inp mt-1 w-full px-2 py-1.5" />
+          </label>
         </div>
-        <input id="tagsInput" placeholder="свои теги через запятую" class="mt-2 w-full border rounded-lg px-2 py-1.5 text-sm" />
-      </div>
-      <div class="mt-4 p-3 rounded-xl bg-amber-50 text-xs text-amber-900">
-        Не заменяет врача. При жизнеугрожающих симптомах — 103/112.
-      </div>
-    </aside>
+        <label class="mt-3 flex items-center gap-2 text-sm">
+          <input id="dietFlag" type="checkbox" class="w-4 h-4" /> Запросить лечебное питание
+        </label>
+        <div class="mt-3 text-sm">
+          <p class="font-medium mb-1">Теги симптомов</p>
+          <div class="flex flex-wrap gap-1.5" id="tagRow">
+            <button data-tag="острая боль" class="tagBtn chip px-2 py-1 text-xs">острая боль</button>
+            <button data-tag="лихорадка" class="tagBtn chip px-2 py-1 text-xs">лихорадка</button>
+            <button data-tag="тошнота" class="tagBtn chip px-2 py-1 text-xs">тошнота</button>
+            <button data-tag="одышка" class="tagBtn chip px-2 py-1 text-xs">одышка</button>
+            <button data-tag="сыпь" class="tagBtn chip px-2 py-1 text-xs">сыпь</button>
+          </div>
+          <input id="tagsInput" placeholder="свои теги через запятую" class="inp mt-2 w-full px-2 py-1.5 text-sm" />
+        </div>
+        <div class="note-warn mt-4 p-3 text-xs">
+          Не заменяет врача. При жизнеугрожающих симптомах — 103/112.
+        </div>
+      </section>
 
-    <!-- ===== Контент ===== -->
-    <main class="flex flex-col gap-6 min-w-0">
-
-      <!-- Карта тела -->
-      <section id="triage" class="bg-white rounded-2xl border border-slate-200 p-5">
-        <h2 class="font-bold mb-1">1. Выберите зону тела</h2>
-        <p class="text-sm text-slate-500 mb-3">Кликните по карте или кнопке — зона подставится в скрининг.</p>
+      <!-- ===== Зона тела: тихая ruled-секция, line-art карта ===== -->
+      <section id="triage" class="sec-quiet pt-4">
+        <h2 class="h-sec ed-ink mb-1">1. Выберите зону тела</h2>
+        <p class="text-sm ed-muted mb-3">Кликните по карте или кнопке — зона подставится в скрининг.</p>
         <div class="flex flex-col sm:flex-row gap-4 items-center">
-          <svg id="bodyMap" viewBox="0 0 140 320" class="h-64 w-auto shrink-0" role="img" aria-label="Интерактивная карта тела">
-            <ellipse cx="70" cy="32" rx="22" ry="26" fill="#cbd5e1" class="zone" data-zone="голова" />
-            <rect x="48" y="62" width="44" height="58" rx="10" fill="#cbd5e1" class="zone" data-zone="грудь" />
-            <rect x="48" y="122" width="44" height="56" rx="10" fill="#cbd5e1" class="zone" data-zone="живот" />
-            <rect x="18" y="66" width="22" height="80" rx="10" fill="#cbd5e1" class="zone" data-zone="конечности" />
-            <rect x="100" y="66" width="22" height="80" rx="10" fill="#cbd5e1" class="zone" data-zone="конечности" />
-            <rect x="50" y="182" width="18" height="110" rx="9" fill="#cbd5e1" class="zone" data-zone="конечности" />
-            <rect x="72" y="182" width="18" height="110" rx="9" fill="#cbd5e1" class="zone" data-zone="конечности" />
+          <svg id="bodyMap" viewBox="0 0 200 340" class="h-64 w-auto shrink-0" role="img" aria-label="Интерактивная карта тела">
+            <rect x="30" y="6" width="140" height="322" rx="18" fill="none" stroke="#d9d8cf" stroke-width="1" stroke-dasharray="4 3" class="zone" data-zone="кожа" />
+            <ellipse cx="100" cy="38" rx="20" ry="24" class="zone" data-zone="голова" />
+            <rect x="76" y="66" width="48" height="56" rx="8" class="zone" data-zone="грудь" />
+            <rect x="76" y="124" width="48" height="54" rx="8" class="zone" data-zone="живот" />
+            <rect x="54" y="70" width="16" height="72" rx="8" class="zone" data-zone="конечности" />
+            <rect x="130" y="70" width="16" height="72" rx="8" class="zone" data-zone="конечности" />
+            <rect x="80" y="182" width="18" height="120" rx="9" class="zone" data-zone="конечности" />
+            <rect x="102" y="182" width="18" height="120" rx="9" class="zone" data-zone="конечности" />
+            <text x="36" y="22" class="zlab">кожа</text>
+            <text x="152" y="42" class="zlab">голова</text>
+            <text x="152" y="97" class="zlab">грудь</text>
+            <text x="152" y="154" class="zlab">живот</text>
+            <text x="152" y="244" class="zlab">конечности</text>
           </svg>
           <div class="flex-1 w-full">
             <div class="flex flex-wrap gap-2" id="zoneRow">
-              <button data-zone="голова" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Голова</button>
-              <button data-zone="грудь" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Грудь</button>
-              <button data-zone="живот" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Живот</button>
-              <button data-zone="конечности" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Руки / ноги / спина</button>
-              <button data-zone="кожа" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Кожа</button>
+              <button data-zone="голова" class="zoneBtn chip px-3 py-1.5 text-sm">Голова</button>
+              <button data-zone="грудь" class="zoneBtn chip px-3 py-1.5 text-sm">Грудь</button>
+              <button data-zone="живот" class="zoneBtn chip px-3 py-1.5 text-sm">Живот</button>
+              <button data-zone="конечности" class="zoneBtn chip px-3 py-1.5 text-sm">Руки / ноги / спина</button>
+              <button data-zone="кожа" class="zoneBtn chip px-3 py-1.5 text-sm">Кожа</button>
             </div>
             <p class="mt-2 text-sm">Выбрано: <b id="zoneLabel">живот</b></p>
             <div class="mt-3">
-              <p class="text-sm font-semibold mb-1">Частые жалобы — подставить одним нажатием</p>
+              <p class="text-sm font-medium mb-1">Частые жалобы — подставить одним нажатием</p>
               <div class="flex flex-wrap gap-2" id="presetRow">
-                <button data-preset="throat-fever" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Боль в горле + температура</button>
-                <button data-preset="chest-press" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Давящая боль в груди</button>
-                <button data-preset="abdomen-rl" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Боль справа внизу живота</button>
-                <button data-preset="migraine" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Мигренеподобная головная боль</button>
-                <button data-preset="rash" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Сыпь распространяется</button>
-                <button data-preset="back-numb" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Боль в спине + онемение</button>
+                <button data-preset="throat-fever" class="presetBtn chip px-3 py-1.5 text-xs">Боль в горле + температура</button>
+                <button data-preset="chest-press" class="presetBtn chip px-3 py-1.5 text-xs">Давящая боль в груди</button>
+                <button data-preset="abdomen-rl" class="presetBtn chip px-3 py-1.5 text-xs">Боль справа внизу живота</button>
+                <button data-preset="migraine" class="presetBtn chip px-3 py-1.5 text-xs">Мигренеподобная головная боль</button>
+                <button data-preset="rash" class="presetBtn chip px-3 py-1.5 text-xs">Сыпь распространяется</button>
+                <button data-preset="back-numb" class="presetBtn chip px-3 py-1.5 text-xs">Боль в спине + онемение</button>
               </div>
-              <p class="mt-1 text-xs text-slate-500">Пресет заполняет зону, текст и теги. Зона «голова» покрывает горло/шею (маппинг горло→голова).</p>
+              <p class="mt-1 text-xs ed-muted">Пресет заполняет зону, текст и теги. Зона «голова» покрывает горло/шею (маппинг горло→голова).</p>
             </div>
           </div>
         </div>
         <!-- TASK-008: фото-конверт для врача (не автодиагноз) -->
-        <div class="mt-4 border-t border-slate-200 pt-4" id="photoBlock">
-          <p class="text-sm font-semibold mb-1">Фото для врача <span class="font-normal text-slate-500">(необязательно, макс. 3 — jpeg/png/webp до 8 МБ)</span></p>
-          <p class="text-xs text-slate-500 mb-2">Фото для врача, не автодиагноз: снимок не влияет на оценку и прикладывается как вложение для очного приёма. Не загружайте фото лица и документов — это персональные данные.</p>
-          <label class="flex items-start gap-2 text-xs text-slate-700 mb-2">
+        <div class="mt-4 pt-4 sec-quiet" id="photoBlock">
+          <p class="text-sm font-medium mb-1">Фото для врача <span class="font-normal ed-muted">(необязательно, макс. 3 — jpeg/png/webp до 8 МБ)</span></p>
+          <p class="text-xs ed-muted mb-2">Фото для врача, не автодиагноз: снимок не влияет на оценку и прикладывается как вложение для очного приёма. Не загружайте фото лица и документов — это персональные данные.</p>
+          <label class="flex items-start gap-2 text-xs mb-2">
             <input id="photoConsent" type="checkbox" class="w-4 h-4 mt-0.5" />
             <span>Согласен(на) прикрепить фото для врача, не автодиагноз.</span>
           </label>
-          <div class="flex items-center gap-2">
-            <input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" class="text-xs" />
-            <button id="photoUploadBtn" class="px-3 py-1.5 rounded-full border text-xs bg-white hover:bg-blue-50">Загрузить</button>
+          <div class="filewrap">
+            <label for="photoInput" class="btn-sec filebtn text-xs">Выбрать файл</label>
+            <span id="photoFileName" class="text-xs ed-faint">Файл не выбран</span>
+            <input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" />
+            <button id="photoUploadBtn" class="btn-sec text-xs">Загрузить</button>
           </div>
-          <p id="photoHint" class="text-xs text-slate-500 mt-1"></p>
+          <p id="photoHint" class="text-xs ed-muted mt-1"></p>
           <div id="photoList" class="flex flex-wrap gap-2 mt-2"></div>
         </div>
       </section>
 
-      <!-- Чат -->
-      <section class="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col">
-        <h2 class="font-bold mb-1">Шаг 1–2. Опишите симптомы и пройдите уточнение</h2>
-        <ol id="steps" class="flex flex-wrap items-center gap-2 text-xs mb-3" aria-label="Этапы триажа">
-          <li data-step="1" class="px-2.5 py-1 rounded-full border">Шаг 1 — профиль и симптомы</li>
-          <li data-step="2" class="px-2.5 py-1 rounded-full border">Шаг 2 — уточнение: вопрос <span id="stepQpos">–</span>/3</li>
-          <li data-step="3" class="px-2.5 py-1 rounded-full border">Шаг 3 — оценка + как посчитали</li>
-        </ol>
-        <div id="chat" class="chat-scroll flex flex-col gap-3 max-h-[420px] overflow-y-auto border rounded-xl p-3 bg-slate-50 mb-3">
-          <div class="self-start max-w-[85%] bg-white border rounded-xl px-3 py-2 text-sm">
+      <!-- ===== Чат: герой ===== -->
+      <section class="sec p-5 flex flex-col">
+        <h2 class="h-sec ed-ink mb-1">Шаг 1–2. Опишите симптомы и пройдите уточнение</h2>
+        <div id="chat" class="chat-scroll flex flex-col gap-3 max-h-[420px] overflow-y-auto insetbox p-3 my-3">
+          <div class="self-start max-w-[85%] msg-ai px-3 py-2 text-sm">
             Здравствуйте! Я MediAI. Опишите симптомы своими словами в поле ниже и нажмите «Отправить» —
             я задам ровно 3 уточняющих вопроса для исключения острых состояний.
           </div>
         </div>
-        <div id="loader" class="hidden items-center gap-2 text-sm text-slate-500 mb-2 loader-dots">
+        <div id="loader" class="hidden items-center gap-2 text-sm ed-muted mb-2 loader-dots">
           <span></span><span></span><span></span> Запрос выполняется…
         </div>
         <div id="questions" class="flex flex-col gap-3 mb-3"></div>
         <!-- ChatGPT-инпут с кнопкой + -->
         <div class="relative flex items-center gap-2">
           <div class="relative">
-            <button id="plusBtn" title="Дополнительно" class="w-10 h-10 rounded-full border text-xl leading-none hover:bg-slate-100">+</button>
-            <div id="plusMenu" class="hidden absolute bottom-12 left-0 w-56 bg-white border rounded-xl shadow-lg p-2 text-sm z-30">
-              <button id="plusDiet" class="block w-full text-left px-2 py-1.5 rounded hover:bg-slate-100">Включить запрос диеты</button>
-              <button id="plusClear" class="block w-full text-left px-2 py-1.5 rounded hover:bg-slate-100">Очистить чат</button>
-              <button id="plusSport" class="block w-full text-left px-2 py-1.5 rounded hover:bg-slate-100">Перейти к спорт-плану</button>
+            <button id="plusBtn" title="Дополнительно" aria-label="Дополнительно" class="btn-sec w-10 h-10 t-c text-xl leading-none">+</button>
+            <div id="plusMenu" class="hidden absolute bottom-12 left-0 w-56 sec p-2 text-sm z-30">
+              <button id="plusDiet" class="btn-ter block w-full text-left">Включить запрос диеты</button>
+              <button id="plusClear" class="btn-ter block w-full text-left">Очистить чат</button>
+              <button id="plusSport" class="btn-ter block w-full text-left">Перейти к спорт-плану</button>
             </div>
           </div>
-          <input id="symptoms" placeholder="Опишите симптомы своими словами…" class="flex-1 border rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <button id="sendBtn" class="px-5 py-2.5 rounded-full bg-blue-600 text-white text-sm hover:bg-blue-700">Отправить</button>
+          <input id="symptoms" placeholder="Опишите симптомы своими словами…" class="inp flex-1 min-w-0 px-4 py-2.5 text-sm" style="border-radius:999px" />
+          <button id="sendBtn" class="btn-pri">Отправить</button>
         </div>
-        <button id="finalBtn" disabled class="mt-3 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm disabled:opacity-40 hover:bg-slate-700">
+        <button id="finalBtn" disabled class="btn-pri mt-3">
           Получить оценку риска
         </button>
-        <label class="mt-2 flex items-start gap-2 text-sm text-slate-700">
+        <label class="mt-2 flex items-start gap-2 text-sm">
           <input id="consentCheck" type="checkbox" class="w-4 h-4 mt-0.5" />
           <span>Я понимаю, что это не диагноз и не заменяет врача. При жизнеугрожающих симптомах — 103/112.</span>
         </label>
       </section>
 
-      <!-- Результат + шкала триажа -->
-      <section id="result" class="hidden bg-white rounded-2xl border border-slate-200 p-5">
-        <div id="emergencyBanner" class="hidden mb-3 p-3 rounded-xl bg-red-600 text-white text-sm font-semibold"></div>
-        <h2 class="font-bold mb-2">Результат триажа (предварительный, не диагноз)</h2>
-        <p class="text-xs text-slate-500 mb-2">Эвристическая оценка для обсуждения с врачом. Не ставит диагноз и не заменяет очный осмотр.</p>
-        <p id="framing" class="mb-3 p-3 rounded-xl bg-slate-50 border text-sm text-slate-700"></p>
-        <div id="photosBox" class="hidden mb-3 p-3 rounded-xl bg-slate-50 border text-sm"></div>
+      <!-- ===== Результат: пик (штамп + семафор) ===== -->
+      <section id="result" class="hidden sec p-5">
+        <div id="emergencyBanner" class="hidden mb-3 p-3 banner text-sm font-semibold"></div>
+        <h2 class="h-sec ed-ink mb-2">Результат триажа (предварительный, не диагноз)</h2>
+        <p class="text-xs ed-muted mb-2">Эвристическая оценка для обсуждения с врачом. Не ставит диагноз и не заменяет очный осмотр.</p>
+        <p id="framing" class="mb-3 p-3 insetbox text-sm"></p>
+        <div id="photosBox" class="hidden mb-3 p-3 insetbox text-sm"></div>
         <div class="flex items-center gap-3 mb-1 text-sm">
-          <span id="triageBadge" class="px-3 py-1 rounded-full font-bold text-white">—</span>
-          <span>Риск: <b id="riskScore">—</b></span>
-          <span>ИМТ: <b id="bmiVal">—</b> (<span id="bmiCat">—</span>)</span>
+          <span id="triageBadge" class="stamp">—</span>
+          <span>Риск: <b id="riskScore" class="tnum">—</b></span>
+          <span>ИМТ: <b id="bmiVal" class="tnum">—</b> (<span id="bmiCat">—</span>)</span>
         </div>
         <!-- Шкала триажа -->
-        <div class="relative h-4 rounded-full overflow-visible mb-1 flex">
-          <div class="h-full bg-green-500" style="width:25%"></div>
-          <div class="h-full bg-yellow-400" style="width:35%"></div>
-          <div class="h-full bg-orange-500" style="width:25%"></div>
-          <div class="h-full bg-red-600" style="width:15%"></div>
+        <div class="relative h-2 rounded-full overflow-visible mb-1 flex">
+          <div class="h-full sema-g" style="width:25%"></div>
+          <div class="h-full sema-y" style="width:35%"></div>
+          <div class="h-full sema-o" style="width:25%"></div>
+          <div class="h-full sema-r" style="width:15%"></div>
           <div id="riskMarker" class="absolute -top-1 w-1.5 h-6 bg-slate-900 rounded" style="left:0%"></div>
         </div>
-        <div class="flex justify-between text-[11px] text-slate-500 mb-4">
+        <div class="f-mono flex justify-between text-[11px] tnum ed-faint mb-4">
           <span>0 GREEN</span><span>25</span><span>60</span><span>85</span><span>100 RED</span>
         </div>
         <div class="grid md:grid-cols-2 gap-4 text-sm">
           <div>
-            <h3 class="font-semibold mb-1">Возможные причины (не диагноз, МКБ-10 для обсуждения с врачом)</h3>
+            <h3 class="h-card ed-ink mb-1">Возможные причины (не диагноз, МКБ-10 для обсуждения с врачом)</h3>
             <div id="conds" class="flex flex-col gap-2"></div>
           </div>
           <div>
-            <h3 class="font-semibold mb-1">Лечебное питание</h3>
-            <div id="diet" class="p-3 rounded-xl bg-slate-50 border text-sm"></div>
+            <h3 class="h-card ed-ink mb-1">Лечебное питание</h3>
+            <div id="diet" class="p-3 insetbox text-sm"></div>
           </div>
         </div>
         <div class="grid md:grid-cols-2 gap-4 text-sm mt-4">
           <div>
-            <h3 class="font-semibold mb-1">Пошаговый план</h3>
+            <h3 class="h-card ed-ink mb-1">Пошаговый план</h3>
             <ol id="actions" class="list-decimal ml-5 flex flex-col gap-1"></ol>
             <p class="mt-2">Врач: <b id="seeDoctor">—</b></p>
-            <h3 class="font-semibold mt-3 mb-1 text-red-700">Категорически нельзя</h3>
-            <ul id="forbidden" class="list-disc ml-5 flex flex-col gap-1 text-red-900"></ul>
+            <h3 class="h-card ed-err mt-3 mb-1">Категорически нельзя</h3>
+            <ul id="forbidden" class="list-disc ml-5 flex flex-col gap-1 ed-err"></ul>
           </div>
           <div id="evidence">
-            <h3 class="font-semibold mb-1">Доказательные источники</h3>
-            <div id="evList" class="flex flex-col gap-1"></div>
+            <h3 class="h-card ed-ink mb-1">Доказательные источники</h3>
+            <div id="evList" class="flex flex-col"></div>
           </div>
         </div>
-        <div class="mt-4 p-3 rounded-xl bg-slate-50 border text-sm" id="howCounted">
-          <h3 class="font-semibold mb-1">Как мы посчитали (прозрачность)</h3>
-          <p class="text-xs text-slate-500 mb-2">Эвристические правила, не диагноз. Версия правил: <b id="rulesVer">—</b>. Баллы суммируются в эвристический риск-балл (пороги триажа 25/60/85).</p>
+        <div class="mt-4 p-3 insetbox text-sm" id="howCounted">
+          <h3 class="h-card ed-ink mb-1">Как мы посчитали (прозрачность)</h3>
+          <p class="text-xs ed-muted mb-2">Эвристические правила, не диагноз. Версия правил: <b id="rulesVer" class="f-mono">—</b>. Баллы суммируются в эвристический риск-балл (пороги триажа 25/60/85).</p>
           <ul id="breakdown" class="list-disc ml-5 flex flex-col gap-1"></ul>
-          <p class="text-xs text-slate-500 mt-2">Оценки причин — качественные (низкая / средняя / высокая). Числа в JSON оставлены для совместимости и не являются точной вероятностью диагноза.</p>
+          <p class="text-xs ed-muted mt-2">Оценки причин — качественные (низкая / средняя / высокая). Числа в JSON оставлены для совместимости и не являются точной вероятностью диагноза.</p>
         </div>
       </section>
 
-      <!-- Спорт -->
-      <section id="sport" class="bg-white rounded-2xl border border-slate-200 p-5">
-        <h2 class="font-bold mb-1">Спорт-план</h2>
-        <p class="text-sm text-slate-500 mb-3">Реалистичный темп без завышенных ожиданий. Данные профиля подставляются из сайдбара.</p>
+      <!-- ===== Спорт: тихая ruled-секция ===== -->
+      <section id="sport" class="sec-quiet pt-4">
+        <h2 class="h-sec ed-ink mb-1">Спорт-план</h2>
+        <p class="text-sm ed-muted mb-3">Реалистичный темп без завышенных ожиданий. Данные профиля подставляются из сайдбара.</p>
         <div class="grid sm:grid-cols-3 gap-3 text-sm">
           <label class="block">Цель
-            <select id="goal" class="mt-1 w-full border rounded-lg px-2 py-1.5">
+            <select id="goal" class="inp mt-1 w-full px-2 py-1.5">
               <option value="lose">Снижение веса</option>
               <option value="gain">Набор массы</option>
               <option value="maintain">Поддержание</option>
@@ -257,7 +265,7 @@
             </select>
           </label>
           <label class="block">Активность
-            <select id="activity" class="mt-1 w-full border rounded-lg px-2 py-1.5">
+            <select id="activity" class="inp mt-1 w-full px-2 py-1.5">
               <option value="sedentary">Сидячий образ</option>
               <option value="light" selected>Лёгкая</option>
               <option value="moderate">Умеренная</option>
@@ -266,16 +274,37 @@
             </select>
           </label>
           <div class="flex items-end">
-            <button id="sportBtn" class="w-full px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">Рассчитать план</button>
+            <button id="sportBtn" class="btn-pri w-full">Рассчитать план</button>
           </div>
         </div>
         <div id="sportOut" class="hidden mt-4 text-sm"></div>
       </section>
 
-      <footer class="text-xs text-slate-500 pb-6">
+      <footer class="text-xs ed-muted pb-6">
         MediAI не ставит диагноз и не заменяет врача. Доказательная база: ВОЗ, PubMed, клинические протоколы (см. источники в результате).
       </footer>
     </main>
+    <aside id="rail" class="railbox" aria-label="Сводка триажа">
+      <div class="sec p-4">
+        <p class="overline f-mono mb-2">Этапы</p>
+        <ol id="railSteps" class="rail-v">
+          <li data-rstep="1" data-state="now"><span class="rail-n">1</span><span class="rail-t">Шаг 1 — профиль и симптомы</span></li>
+          <li data-rstep="2" data-state="todo"><span class="rail-n">2</span><span class="rail-t">Шаг 2 — уточнение: вопрос <span class="tnum">–</span>/3</span></li>
+          <li data-rstep="3" data-state="todo"><span class="rail-n">3</span><span class="rail-t">Шаг 3 — оценка + как посчитали</span></li>
+        </ol>
+        <div id="railSummary" class="hidden">
+          <div class="sec-quiet mt-3 pt-3">
+            <p class="overline f-mono mb-2">Оценка</p>
+            <span id="railLevel" class="stamp">—</span>
+            <p class="text-sm mt-2">Риск: <b id="railScore" class="tnum">—</b></p>
+            <p id="railFraming" class="text-xs ed-muted mt-1"></p>
+            <a href="#howCounted" class="text-sm mt-2 block ed-accent underline">Как мы посчитали</a>
+          </div>
+        </div>
+        <p class="text-xs ed-muted mt-3 pt-3 sec-quiet">Не заменяет врача. При жизнеугрожающих симптомах — 103/112.</p>
+      </div>
+    </aside>
+    </div>
   </div>
 
 <script>
@@ -300,6 +329,28 @@ function isSafeHttpUrl(u) {
   } catch (err) { return false; }
 }
 
+// ---------- Язык интерфейса RU | EN | KZ (localStorage, default ru) ----------
+const LANGS = ['ru', 'en', 'kz'];
+let currentLang = 'ru';
+try {
+  const saved = localStorage.getItem('mediali-lang');
+  if (LANGS.includes(saved)) currentLang = saved;
+} catch (err) {}
+function setLang(l) {
+  if (!LANGS.includes(l)) l = 'ru';
+  currentLang = l;
+  try { localStorage.setItem('mediali-lang', l); } catch (err) {}
+  document.documentElement.lang = l;
+  document.querySelectorAll('#langRow [data-lang]').forEach(b => b.classList.toggle('is-sel', b.dataset.lang === l));
+  const grid = $('megaGrid');
+  if (grid && grid.dataset.loaded) {
+    delete grid.dataset.loaded;
+    if ($('megaMenu').classList.contains('open')) loadConditions();
+  }
+}
+document.querySelectorAll('#langRow [data-lang]').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+setLang(currentLang);
+
 // ---------- Фото для врача (TASK-008: конверт, не автодиагноз; ids уходят с final-запросом) ----------
 async function uploadPhoto() {
   const inp = $('photoInput'), hint = $('photoHint');
@@ -318,6 +369,7 @@ async function uploadPhoto() {
       ? 'Готово: ' + (d.hint || '')
       : 'Загружено, но: ' + (d.hint || d.quality) + ' Можно переснять и загрузить заново.';
     inp.value = '';
+    if ($('photoFileName')) $('photoFileName').textContent = 'Файл не выбран';
     renderPhotos();
   } catch (err) { hint.textContent = 'Ошибка загрузки: ' + err.message; }
 }
@@ -327,13 +379,14 @@ function renderPhotos() {
   box.innerHTML = '';
   state.photoIds.forEach((pid, i) => {
     const el = document.createElement('div');
-    el.className = 'flex items-center gap-1 text-xs border rounded-full pl-2 pr-1 py-0.5 bg-slate-50';
+    el.className = 'flex items-center gap-1 text-xs border rounded-full pl-2 pr-1 py-0.5';
+    el.style.borderColor = 'var(--line)';
     const label = document.createElement('span');
-    label.className = 'font-mono';
+    label.className = 'font-mono f-mono';
     label.textContent = 'фото ' + (i + 1);
     el.appendChild(label);
     const rm = document.createElement('button');
-    rm.className = 'px-2 py-0.5 rounded-full hover:bg-red-100 text-red-700';
+    rm.className = 'px-2 py-0.5 rounded-full ed-err';
     rm.textContent = '✕ переснять';
     rm.onclick = () => { state.photoIds.splice(i, 1); renderPhotos(); };
     el.appendChild(rm);
@@ -341,13 +394,20 @@ function renderPhotos() {
   });
 }
 if ($('photoUploadBtn')) $('photoUploadBtn').onclick = uploadPhoto;
+if ($('photoInput')) $('photoInput').addEventListener('change', () => {
+  const f = $('photoInput').files && $('photoInput').files[0];
+  if ($('photoFileName')) $('photoFileName').textContent = f ? f.name : 'Файл не выбран';
+});
 
-// ---------- Этапы (честный индикатор: переключается только по реальным ответам API) ----------
+// ---------- Semaphore step-rail: состояние только по реальным ответам API ----------
 function setStep(n) {
   document.querySelectorAll('#steps [data-step]').forEach(li => {
-    const on = +li.dataset.step === n;
-    li.classList.toggle('bg-slate-900', on);
-    li.classList.toggle('text-white', on);
+    const s = +li.dataset.step;
+    li.dataset.state = s < n ? 'done' : (s === n ? 'now' : 'todo');
+  });
+  document.querySelectorAll('#railSteps [data-rstep]').forEach(li => {
+    const s = +li.dataset.rstep;
+    li.dataset.state = s < n ? 'done' : (s === n ? 'now' : 'todo');
   });
 }
 function setStepQpos() {
@@ -367,9 +427,7 @@ const PRESETS = {
 };
 function syncTagButtons() {
   document.querySelectorAll('.tagBtn').forEach(b => {
-    const on = state.tags.has(b.dataset.tag);
-    b.classList.toggle('bg-blue-600', on);
-    b.classList.toggle('text-white', on);
+    b.classList.toggle('is-sel', state.tags.has(b.dataset.tag));
   });
 }
 function applyPreset(key) {
@@ -435,23 +493,23 @@ async function loadConditions() {
   const grid = $('megaGrid');
   if (grid.dataset.loaded) return;
   try {
-    const r = await fetch('/api/conditions');
+    const r = await fetch('/api/conditions?lang=' + encodeURIComponent(currentLang));
     const data = await r.json();
     clearEl(grid);
     for (const [cat, items] of Object.entries(data.categories)) {
       const col = document.createElement('div');
       // TASK-012 XSS: category name is server data -> textContent only.
-      col.appendChild(makeEl('h3', 'font-semibold capitalize mb-2 text-blue-800', cat));
+      col.appendChild(makeEl('h3', 'text-sm font-semibold capitalize mb-1 ed-ink', cat));
       const ul = document.createElement('ul');
       ul.className = 'flex flex-col gap-1.5 text-sm';
       for (const c of items) {
         const li = document.createElement('li');
         // TASK-012 XSS: name/icd10/urgency_hint are server data -> textContent only.
         li.appendChild(makeEl('span', 'font-medium', c.name));
-        const code = makeEl('span', 'ml-1 px-1.5 py-0.5 rounded bg-slate-100 text-xs font-mono', c.icd10);
+        const code = makeEl('span', 'ml-1 px-1.5 py-0.5 rounded bg-slate-100 text-xs f-mono tnum', c.icd10);
         li.appendChild(document.createTextNode(' '));
         li.appendChild(code);
-        li.appendChild(makeEl('div', 'text-xs text-slate-500', c.urgency_hint || ''));
+        li.appendChild(makeEl('div', 'text-xs ed-muted', c.urgency_hint || ''));
         ul.appendChild(li);
       }
       col.appendChild(ul);
@@ -460,7 +518,7 @@ async function loadConditions() {
     grid.dataset.loaded = '1';
   } catch (err) {
     clearEl(grid);
-    grid.appendChild(makeEl('p', 'text-sm text-red-600', 'Не удалось загрузить каталог. Проверьте, что backend запущен.'));
+    grid.appendChild(makeEl('p', 'text-sm ed-err', 'Не удалось загрузить каталог. Проверьте, что backend запущен.'));
   }
 }
 
@@ -470,8 +528,7 @@ function setZone(z) {
   $('zoneLabel').textContent = z;
   document.querySelectorAll('#bodyMap .zone').forEach(el => el.classList.toggle('active', el.dataset.zone === z));
   document.querySelectorAll('.zoneBtn').forEach(b => {
-    const on = b.dataset.zone === z;
-    b.classList.toggle('bg-blue-600', on); b.classList.toggle('text-white', on); b.classList.toggle('border', !on);
+    b.classList.toggle('is-sel', b.dataset.zone === z);
   });
 }
 document.querySelectorAll('#bodyMap .zone').forEach(el => el.addEventListener('click', () => setZone(el.dataset.zone)));
@@ -489,14 +546,14 @@ document.querySelectorAll('.tagBtn').forEach(b => b.addEventListener('click', ()
 // ---------- Чат-инпут с кнопкой + ----------
 $('plusBtn').onclick = () => $('plusMenu').classList.toggle('hidden');
 $('plusDiet').onclick = () => { $('dietFlag').checked = true; $('plusMenu').classList.add('hidden'); addMsg('ai', 'Запрос лечебного питания включён — он будет учтён в финальной оценке.'); };
-$('plusClear').onclick = () => { $('chat').innerHTML = ''; $('questions').innerHTML = ''; $('result').classList.add('hidden'); $('plusMenu').classList.add('hidden'); state.answers = {}; state.qIndex = 0; state.photoIds = []; renderPhotos(); setStep(1); setStepQpos(); updateFinalBtn(); };
+$('plusClear').onclick = () => { $('chat').innerHTML = ''; $('questions').innerHTML = ''; $('result').classList.add('hidden'); if ($('railSummary')) $('railSummary').classList.add('hidden'); $('plusMenu').classList.add('hidden'); state.answers = {}; state.qIndex = 0; state.photoIds = []; renderPhotos(); setStep(1); setStepQpos(); updateFinalBtn(); };
 $('plusSport').onclick = () => { $('plusMenu').classList.add('hidden'); document.querySelector('#sport').scrollIntoView({behavior: 'smooth'}); };
 
 function addMsg(who, text) {
   const d = document.createElement('div');
   d.className = who === 'user'
-    ? 'self-end max-w-[85%] bg-blue-600 text-white rounded-xl px-3 py-2 text-sm'
-    : 'self-start max-w-[85%] bg-white border rounded-xl px-3 py-2 text-sm';
+    ? 'self-end max-w-[85%] msg-user px-3 py-2 text-sm'
+    : 'self-start max-w-[85%] msg-ai px-3 py-2 text-sm';
   d.textContent = text;
   $('chat').appendChild(d);
   $('chat').scrollTop = $('chat').scrollHeight;
@@ -517,6 +574,7 @@ function profile() {
     symptoms_text: $('symptoms').value.trim(),
     tags: [...state.tags, ...extra],
     request_diet: $('dietFlag').checked,
+    lang: currentLang,
   };
 }
 
@@ -529,7 +587,7 @@ async function sendSymptoms() {
   addMsg('user', p.symptoms_text);
   setLoading(true);
   // Скелетон только на время реального fetch (без искусственных задержек).
-  $('questions').innerHTML = '<div class="border rounded-xl p-3 bg-slate-50 animate-pulse"><div class="h-3 bg-slate-200 rounded w-2/3 mb-2"></div><div class="h-3 bg-slate-200 rounded w-1/2"></div><p class="text-xs text-slate-500 mt-2">Запрос выполняется…</p></div>';
+  $('questions').innerHTML = '<div class="qcard p-3 animate-pulse"><div class="h-3 bg-slate-200 rounded w-2/3 mb-2"></div><div class="h-3 bg-slate-200 rounded w-1/2"></div><p class="text-xs ed-muted mt-2">Запрос выполняется…</p></div>';
   try {
     const r = await fetch('/api/triage/initial', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -560,18 +618,18 @@ function renderOneQuestion() {
   if (!q) { updateFinalBtn(); return; }
   const idx = state.qIndex;
   const card = document.createElement('div');
-  card.className = 'border rounded-xl p-3 bg-slate-50';
+  card.className = 'qcard p-3';
   // TASK-012 XSS: question text/reason/options are server data -> textContent only.
   // Counter line is local ints (safe static skeleton pattern kept as elements).
-  card.appendChild(makeEl('p', 'text-xs text-slate-500 mb-1', 'Вопрос ' + (idx + 1) + ' из ' + state.questions.length));
+  card.appendChild(makeEl('p', 'f-mono text-xs ed-faint mb-1 tnum', 'Вопрос ' + (idx + 1) + ' из ' + state.questions.length));
   card.appendChild(makeEl('p', 'text-sm font-medium mb-1', q.text));
-  card.appendChild(makeEl('p', 'text-xs text-slate-500 mb-2', q.reason || ''));
+  card.appendChild(makeEl('p', 'text-xs ed-muted mb-2', q.reason || ''));
   const row = document.createElement('div');
   row.className = 'flex flex-wrap gap-2';
   (q.options || ['Да', 'Нет', 'Не уверен(а)']).forEach(opt => {
     const b = document.createElement('button');
-    b.className = 'ansBtn px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-blue-50';
-    if (state.answers[q.id] === opt) b.classList.add('bg-blue-600', 'text-white');
+    b.className = 'ansBtn chip px-3 py-1.5 text-sm';
+    if (state.answers[q.id] === opt) b.classList.add('is-sel');
     b.textContent = opt;
     b.onclick = () => {
       state.answers[q.id] = opt;
@@ -585,13 +643,13 @@ function renderOneQuestion() {
   nav.className = 'flex items-center gap-2 mt-2';
   if (idx > 0) {
     const back = document.createElement('button');
-    back.className = 'px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-slate-100';
+    back.className = 'btn-sec px-3 py-1.5 text-sm';
     back.textContent = '← Назад';
     back.onclick = () => { state.qIndex = idx - 1; renderOneQuestion(); };
     nav.appendChild(back);
   }
   const pos = document.createElement('span');
-  pos.className = 'text-xs text-slate-500';
+  pos.className = 'f-mono text-xs ed-faint tnum';
   const done = Object.keys(state.answers).length;
   pos.textContent = `Отвечено: ${done}/3`;
   nav.appendChild(pos);
@@ -622,7 +680,6 @@ $('finalBtn').onclick = async () => {
     addMsg('ai', 'Ошибка оценки: ' + err.message);
   } finally { setLoading(false); }
 };
-const LV_COLOR = { GREEN: 'bg-green-600', YELLOW: 'bg-yellow-500', ORANGE: 'bg-orange-600', RED: 'bg-red-600' };
 function bandLabel(prob) {
   const p = Number(prob);
   if (p < 30) return 'низкая';
@@ -633,8 +690,18 @@ function renderResult(d) {
   $('result').classList.remove('hidden');
   setStep(3);
   const topIcd = (d.probable_conditions && d.probable_conditions[0] && d.probable_conditions[0].icd10) || '';
+  const frText = framingText(d.triage_level, topIcd, d.lang || 'ru');
   const fr = $('framing');
-  if (fr) fr.textContent = framingText(d.triage_level, topIcd, d.lang || 'ru');
+  if (fr) fr.textContent = frText;
+  const rs = $('railSummary');
+  if (rs) {
+    rs.classList.remove('hidden');
+    const rl = $('railLevel');
+    rl.textContent = d.triage_level;
+    rl.dataset.lv = d.triage_level;
+    $('railScore').textContent = d.risk_score + ' (эвристический балл, не вероятность диагноза)';
+    $('railFraming').textContent = frText;
+  }
   const pb = $('photosBox');
   if (pb) {
     if (d.photos_attached && d.photos_attached.length) {
@@ -645,7 +712,8 @@ function renderResult(d) {
   }
   const badge = $('triageBadge');
   badge.textContent = d.triage_level;
-  badge.className = 'px-3 py-1 rounded-full font-bold text-white ' + (LV_COLOR[d.triage_level] || 'bg-slate-600');
+  badge.className = 'stamp';
+  badge.dataset.lv = d.triage_level;
   $('riskScore').textContent = d.risk_score + ' (эвристический балл, не вероятность диагноза)';
   const riskNum = Math.min(100, Math.max(0, Number(d.risk_score) || 0));
   $('riskMarker').style.left = 'calc(' + riskNum + '% - 3px)';
@@ -657,31 +725,31 @@ function renderResult(d) {
   const conds = $('conds'); clearEl(conds);
   d.probable_conditions.forEach(c => {
     const el = document.createElement('div');
-    el.className = 'border rounded-xl p-2.5 bg-slate-50';
+    el.className = 'cond p-3';
     // TASK-012 XSS: name/icd10/reason/probability are server data -> DOM only.
     const head = document.createElement('div');
     head.className = 'flex justify-between gap-2';
     head.appendChild(makeEl('b', null, c.name));
-    head.appendChild(makeEl('span', 'font-mono text-xs bg-white border rounded px-1.5 py-0.5', c.icd10));
+    head.appendChild(makeEl('span', 'f-mono tnum text-xs insetbox px-1.5 py-0.5', c.icd10));
     el.appendChild(head);
     const barWrap = document.createElement('div');
-    barWrap.className = 'h-2 rounded bg-slate-200 mt-1.5';
+    barWrap.className = 'h-2 rounded cond-bar mt-1.5';
     const bar = document.createElement('div');
-    bar.className = 'h-2 rounded bg-blue-600';
+    bar.className = 'h-2 rounded cond-fill';
     const pct = Math.min(100, Math.max(0, Number(c.probability) || 0));
     bar.style.width = pct + '%';
     barWrap.appendChild(bar);
     el.appendChild(barWrap);
-    el.appendChild(makeEl('div', 'text-xs text-slate-600 mt-1',
+    el.appendChild(makeEl('div', 'text-xs ed-muted mt-1',
       'вероятность: ' + bandLabel(c.probability) + ' (возможная причина, не диагноз) · ' + (c.reason || '')));
     conds.appendChild(el);
   });
   // TASK-012 XSS: diet/actions/forbidden/evidence/breakdown are server data -> DOM only.
   const dietBox = $('diet'); clearEl(dietBox);
-  const regime = makeEl('p', 'font-semibold ' + (d.diet.allowed ? 'text-emerald-700' : 'text-red-700'), d.diet.regime || '');
+  const regime = makeEl('p', 'font-semibold ' + (d.diet.allowed ? 'ed-ok' : 'ed-err'), d.diet.regime || '');
   dietBox.appendChild(regime);
-  dietBox.appendChild(makeEl('p', 'mt-1 text-slate-600', d.diet.reason || ''));
-  if (d.diet.warning) dietBox.appendChild(makeEl('p', 'mt-1 font-semibold text-red-700', d.diet.warning));
+  dietBox.appendChild(makeEl('p', 'mt-1 ed-muted', d.diet.reason || ''));
+  if (d.diet.warning) dietBox.appendChild(makeEl('p', 'mt-1 font-semibold ed-err', d.diet.warning));
   const dietLists = [
     ['Рекомендуется:', d.diet.recommended],
     ['Исключить:', d.diet.forbidden],
@@ -702,23 +770,24 @@ function renderResult(d) {
   d.forbidden_actions.forEach(a => forbBox.appendChild(makeEl('li', null, a)));
   const evBox = $('evList'); clearEl(evBox);
   d.evidence_sources.forEach((e, i) => {
+    const row = document.createElement('div');
+    row.className = 'evrow py-2 text-sm';
     const a = document.createElement('a');
-    a.className = 'text-blue-700 underline';
     a.textContent = e.title;
     // TASK-012 XSS: href is server data -> allow http(s) only, else drop link target.
     if (isSafeHttpUrl(e.url)) a.href = e.url;
     a.target = '_blank';
     a.rel = 'noopener';
-    evBox.appendChild(a);
-    evBox.appendChild(makeEl('span', 'text-xs text-slate-500', ' [' + e.type + ']'));
-    if (i < d.evidence_sources.length - 1) evBox.appendChild(document.createElement('br'));
+    row.appendChild(a);
+    row.appendChild(makeEl('span', 'f-mono text-xs ed-faint', ' [' + e.type + ']'));
+    evBox.appendChild(row);
   });
   $('rulesVer').textContent = d.rules_version || '—';
   const bdBox = $('breakdown'); clearEl(bdBox);
   if (d.score_breakdown && d.score_breakdown.length) {
-    d.score_breakdown.forEach(b => bdBox.appendChild(makeEl('li', null, b.reason + ' — +' + b.points)));
+    d.score_breakdown.forEach(b => bdBox.appendChild(makeEl('li', 'tnum', b.reason + ' — +' + b.points)));
   } else {
-    bdBox.appendChild(makeEl('li', 'text-slate-500', 'Дополнительных баллов нет — базовый уровень.'));
+    bdBox.appendChild(makeEl('li', 'ed-muted', 'Дополнительных баллов нет — базовый уровень.'));
   }
 }
 
@@ -727,11 +796,12 @@ $('sportBtn').onclick = async () => {
   const out = $('sportOut');
   out.classList.remove('hidden');
   // Static skeleton (no server data) may stay as literal markup.
-  out.innerHTML = '<p class="text-slate-500 loader-dots">Расчёт <span></span><span></span><span></span></p>';
+  out.innerHTML = '<p class="ed-muted loader-dots">Расчёт <span></span><span></span><span></span></p>';
   const body = {
     age: +$('age').value || 30, sex: $('sex').value,
     height_cm: +$('height').value || 175, weight_kg: +$('weight').value || 78,
     goal: $('goal').value, activity_level: $('activity').value, contraindications: [],
+    lang: currentLang,
   };
   try {
     const r = await fetch('/api/sport/plan', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
@@ -741,7 +811,7 @@ $('sportBtn').onclick = async () => {
     clearEl(out);
     const grid = makeEl('div', 'grid sm:grid-cols-4 gap-2 mb-2');
     const stat = (label, val, extra) => {
-      const cell = makeEl('div', 'border rounded-xl p-2', label);
+      const cell = makeEl('div', 'insetbox p-2 tnum', label);
       cell.appendChild(document.createElement('br'));
       cell.appendChild(makeEl('b', null, val));
       if (extra) cell.appendChild(makeEl('span', 'text-xs', ' (' + extra + ')'));
@@ -752,9 +822,9 @@ $('sportBtn').onclick = async () => {
     grid.appendChild(stat('TDEE', d.tdee_kcal + ' ккал'));
     grid.appendChild(stat('Цель', d.target_kcal + ' ккал'));
     out.appendChild(grid);
-    const tempo = makeEl('p', null, 'Темп: ' + d.weekly_tempo_kg);
+    const tempo = makeEl('p', 'tnum', 'Темп: ' + d.weekly_tempo_kg);
     out.appendChild(tempo);
-    out.appendChild(makeEl('p', 'text-slate-600', d.timeline_text));
+    out.appendChild(makeEl('p', 'ed-muted', d.timeline_text));
     const listBlock = (title, items, cls) => {
       out.appendChild(makeEl('p', 'font-medium mt-2', title));
       const ul = makeEl('ul', 'list-disc ml-5' + (cls ? ' ' + cls : ''));
@@ -763,9 +833,9 @@ $('sportBtn').onclick = async () => {
     };
     listBlock('Тренировки:', d.training_plan || []);
     listBlock('Питание:', d.nutrition_hint || []);
-    if (d.contraindications && d.contraindications.length) listBlock('Противопоказания:', d.contraindications, 'text-red-900');
-    if (d.warnings && d.warnings.length) listBlock('Предупреждения:', d.warnings, 'text-amber-900');
-  } catch (err) { clearEl(out); out.appendChild(makeEl('p', 'text-red-600', 'Ошибка расчёта: ' + err.message)); }
+    if (d.contraindications && d.contraindications.length) listBlock('Противопоказания:', d.contraindications, 'ed-err');
+    if (d.warnings && d.warnings.length) listBlock('Предупреждения:', d.warnings, 'ed-warn');
+  } catch (err) { clearEl(out); out.appendChild(makeEl('p', 'ed-err', 'Ошибка расчёта: ' + err.message)); }
 };
 </script>
 </body>
