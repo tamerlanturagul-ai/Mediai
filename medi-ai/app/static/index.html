@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MediAI — первичный клинический триаж</title>
+  <link rel="icon" href="/static/logo.png" />
   <link rel="stylesheet" href="/static/tailwind.css" />
   <style>
     .zone { cursor: pointer; transition: fill .15s ease, opacity .15s ease; }
@@ -22,22 +23,27 @@
 
   <!-- ===== Header ===== -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
-    <div class="max-w-3xl mx-auto px-4 py-3 flex items-center gap-4">
-      <a href="/" class="text-base font-semibold tracking-tight">MediAI</a>
-      <span class="hidden md:inline text-xs text-slate-500">первичный клинический триаж · доказательная медицина</span>
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-4">
+      <a href="/" class="flex items-center gap-2 text-base font-semibold tracking-tight"><img src="/static/logo.png" alt="MediAI" class="h-8 w-8" style="height:2rem;width:2rem;object-fit:contain">MediAI</a>
+      <span id="headerTagline" class="hidden md:inline text-xs text-slate-500">первичный клинический триаж · доказательная медицина</span>
       <nav class="ml-auto flex items-center gap-1 text-sm">
         <div class="relative">
           <button id="megaBtn" class="px-3 py-1.5 rounded-lg border text-slate-700 hover:bg-slate-100">Каталог болезней ▾</button>
         </div>
-        <a href="#triage" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Триаж</a>
-        <a href="#sport" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Спорт</a>
-        <a href="#evidence" class="hidden md:inline px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Источники</a>
-        <span class="px-2 py-1.5 text-sm font-medium text-red-700">Скорая: 103</span>
+        <a id="navTriage" href="#triage" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Триаж</a>
+        <a id="navSport" href="#sport" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Спорт</a>
+        <a id="navEvidence" href="#evidence" class="hidden md:inline px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100">Источники</a>
+        <span id="emergencyLabel" class="px-2 py-1.5 text-sm font-medium text-red-700">Скорая: 103</span>
+        <div id="langRow" class="flex items-center gap-1 ml-2" role="group" aria-label="Язык / Language / Тіл">
+          <button data-lang="ru" class="langBtn px-2 py-1 rounded-lg border text-xs">RU</button>
+          <button data-lang="en" class="langBtn px-2 py-1 rounded-lg border text-xs">EN</button>
+          <button data-lang="kz" class="langBtn px-2 py-1 rounded-lg border text-xs">KZ</button>
+        </div>
       </nav>
     </div>
     <!-- WebMD мега-меню: 4 колонки, данные из GET /api/conditions -->
     <div id="megaMenu" class="mega absolute left-0 right-0 top-full bg-white border-b border-slate-200 z-40">
-      <div class="max-w-3xl mx-auto px-4 py-6">
+      <div class="max-w-6xl mx-auto px-4 py-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="font-semibold text-base">Каталог заболеваний <span class="text-xs font-normal text-slate-500">с кодами МКБ-10</span></h2>
           <button id="megaClose" class="text-sm text-slate-500 hover:text-slate-900">Закрыть ✕</button>
@@ -49,9 +55,10 @@
     </div>
   </header>
 
-  <!-- ===== Layout: одна колонка, чат — в центре ===== -->
-  <div class="max-w-3xl mx-auto px-4 py-6 w-full flex flex-col gap-4 flex-1">
+  <!-- ===== Layout: 2-col on desktop, 1-col on mobile (TASK-016) ===== -->
+  <div class="max-w-6xl mx-auto px-4 py-6 w-full grid gap-4 flex-1 lg:grid-cols-2 items-start">
 
+    <div class="flex flex-col gap-4 min-w-0">
     <!-- ===== Профиль ===== -->
     <aside class="bg-white rounded-xl border border-slate-200 p-5">
       <h2 class="text-sm font-semibold mb-3">Профиль пациента</h2>
@@ -91,12 +98,9 @@
       </div>
     </aside>
 
-    <!-- ===== Контент ===== -->
-    <main class="flex flex-col gap-4 min-w-0">
-
-      <!-- Карта тела -->
-      <section id="triage" class="bg-white rounded-xl border border-slate-200 p-5">
-        <h2 class="text-sm font-semibold mb-1">1. Выберите зону тела</h2>
+    <!-- Карта тела -->
+    <section id="triage" class="bg-white rounded-xl border border-slate-200 p-5">
+      <h2 class="text-sm font-semibold mb-1">1. Выберите зону тела</h2>
         <p class="text-sm text-slate-500 mb-3">Кликните по карте или кнопке — зона подставится в скрининг.</p>
         <div class="flex flex-col sm:flex-row gap-4 items-center">
           <svg id="bodyMap" viewBox="0 0 140 320" class="h-64 w-auto shrink-0" role="img" aria-label="Интерактивная карта тела">
@@ -147,7 +151,9 @@
           <div id="photoList" class="flex flex-wrap gap-2 mt-2"></div>
         </div>
       </section>
+    </div>
 
+    <div class="flex flex-col gap-4 min-w-0">
       <!-- Чат -->
       <section class="bg-white rounded-xl border border-slate-200 p-5 flex flex-col">
         <h2 class="text-sm font-semibold mb-1">Шаг 1–2. Опишите симптомы и пройдите уточнение</h2>
@@ -241,9 +247,10 @@
           <p class="text-xs text-slate-500 mt-2">Оценки причин — качественные (низкая / средняя / высокая). Числа в JSON оставлены для совместимости и не являются точной вероятностью диагноза.</p>
         </div>
       </section>
+    </div>
 
-      <!-- Спорт -->
-      <section id="sport" class="bg-white rounded-xl border border-slate-200 p-5">
+    <!-- Спорт -->
+    <section id="sport" class="bg-white rounded-xl border border-slate-200 p-5 lg:col-span-2">
         <h2 class="text-sm font-semibold mb-1">Спорт-план</h2>
         <p class="text-sm text-slate-500 mb-3">Реалистичный темп без завышенных ожиданий. Данные профиля подставляются из сайдбара.</p>
         <div class="grid sm:grid-cols-3 gap-3 text-sm">
@@ -272,15 +279,43 @@
         <div id="sportOut" class="hidden mt-4 text-sm"></div>
       </section>
 
-      <footer class="text-xs text-slate-500 pb-6">
+      <footer class="text-xs text-slate-500 pb-6 lg:col-span-2">
         MediAI не ставит диагноз и не заменяет врача. Доказательная база: ВОЗ, PubMed, клинические протоколы (см. источники в результате).
       </footer>
-    </main>
   </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const state = { zone: 'живот', tags: new Set(), questions: [], answers: {}, qIndex: 0, photoIds: [] };
+const state = { lang: 'ru', zone: 'живот', tags: new Set(), questions: [], answers: {}, qIndex: 0, photoIds: [] };
+
+// ---------- TASK-016: язык интерфейса RU | EN | KZ (static header labels only) ----------
+const HEADER_I18N = {
+  ru: { tagline: 'первичный клинический триаж · доказательная медицина', catalog: 'Каталог болезней ▾', triage: 'Триаж', sport: 'Спорт', evidence: 'Источники', emergency: 'Скорая: 103' },
+  en: { tagline: 'primary clinical triage · evidence-based medicine', catalog: 'Conditions ▾', triage: 'Triage', sport: 'Sport', evidence: 'Sources', emergency: 'Emergency: 103' },
+  kz: { tagline: 'бастапқы клиникалық триаж · дәлелді медицина', catalog: 'Аурулар каталогы ▾', triage: 'Триаж', sport: 'Спорт', evidence: 'Дереккөздер', emergency: 'Жедел жәрдем: 103' },
+};
+function setLang(l) {
+  if (l !== 'en' && l !== 'kz') l = 'ru';
+  state.lang = l;
+  document.documentElement.lang = l;
+  document.querySelectorAll('.langBtn').forEach((b) => {
+    const on = b.dataset.lang === l;
+    b.classList.toggle('bg-slate-900', on);
+    b.classList.toggle('text-white', on);
+  });
+  const t = HEADER_I18N[l];
+  if ($('headerTagline')) $('headerTagline').textContent = t.tagline;
+  if ($('megaBtn')) $('megaBtn').textContent = t.catalog;
+  if ($('navTriage')) $('navTriage').textContent = t.triage;
+  if ($('navSport')) $('navSport').textContent = t.sport;
+  if ($('navEvidence')) $('navEvidence').textContent = t.evidence;
+  if ($('emergencyLabel')) $('emergencyLabel').textContent = t.emergency;
+  const grid = $('megaGrid');
+  if (grid) delete grid.dataset.loaded;
+  if ($('megaMenu') && $('megaMenu').classList.contains('open')) loadConditions();
+}
+document.querySelectorAll('.langBtn').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
+setLang('ru');
 
 // ---------- TASK-012 XSS helpers: server data NEVER goes through innerHTML ----------
 function makeEl(tag, className, text) {
@@ -435,7 +470,7 @@ async function loadConditions() {
   const grid = $('megaGrid');
   if (grid.dataset.loaded) return;
   try {
-    const r = await fetch('/api/conditions');
+    const r = await fetch('/api/conditions?lang=' + encodeURIComponent(state.lang));
     const data = await r.json();
     clearEl(grid);
     for (const [cat, items] of Object.entries(data.categories)) {
@@ -517,6 +552,7 @@ function profile() {
     symptoms_text: $('symptoms').value.trim(),
     tags: [...state.tags, ...extra],
     request_diet: $('dietFlag').checked,
+    lang: state.lang,
   };
 }
 
@@ -732,6 +768,7 @@ $('sportBtn').onclick = async () => {
     age: +$('age').value || 30, sex: $('sex').value,
     height_cm: +$('height').value || 175, weight_kg: +$('weight').value || 78,
     goal: $('goal').value, activity_level: $('activity').value, contraindications: [],
+    lang: state.lang,
   };
   try {
     const r = await fetch('/api/sport/plan', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
