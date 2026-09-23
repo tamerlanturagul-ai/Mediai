@@ -150,12 +150,17 @@
         <button id="finalBtn" disabled class="mt-3 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm disabled:opacity-40 hover:bg-slate-700">
           Получить оценку риска
         </button>
+        <label class="mt-2 flex items-start gap-2 text-sm text-slate-700">
+          <input id="consentCheck" type="checkbox" class="w-4 h-4 mt-0.5" />
+          <span>Я понимаю, что это не диагноз и не заменяет врача. При жизнеугрожающих симптомах — 103/112.</span>
+        </label>
       </section>
 
       <!-- Результат + шкала триажа -->
       <section id="result" class="hidden bg-white rounded-2xl border border-slate-200 p-5">
         <div id="emergencyBanner" class="hidden mb-3 p-3 rounded-xl bg-red-600 text-white text-sm font-semibold"></div>
-        <h2 class="font-bold mb-2">Результат триажа</h2>
+        <h2 class="font-bold mb-2">Результат триажа (предварительный, не диагноз)</h2>
+        <p class="text-xs text-slate-500 mb-2">Эвристическая оценка для обсуждения с врачом. Не ставит диагноз и не заменяет очный осмотр.</p>
         <div class="flex items-center gap-3 mb-1 text-sm">
           <span id="triageBadge" class="px-3 py-1 rounded-full font-bold text-white">—</span>
           <span>Риск: <b id="riskScore">—</b></span>
@@ -174,7 +179,7 @@
         </div>
         <div class="grid md:grid-cols-2 gap-4 text-sm">
           <div>
-            <h3 class="font-semibold mb-1">Вероятные состояния (МКБ-10)</h3>
+            <h3 class="font-semibold mb-1">Возможные причины (не диагноз, МКБ-10 для обсуждения с врачом)</h3>
             <div id="conds" class="flex flex-col gap-2"></div>
           </div>
           <div>
@@ -194,6 +199,12 @@
             <h3 class="font-semibold mb-1">Доказательные источники</h3>
             <div id="evList" class="flex flex-col gap-1"></div>
           </div>
+        </div>
+        <div class="mt-4 p-3 rounded-xl bg-slate-50 border text-sm" id="howCounted">
+          <h3 class="font-semibold mb-1">Как мы посчитали (прозрачность)</h3>
+          <p class="text-xs text-slate-500 mb-2">Эвристические правила, не диагноз. Версия правил: <b id="rulesVer">—</b>. Баллы суммируются в эвристический риск-балл (пороги триажа 25/60/85).</p>
+          <ul id="breakdown" class="list-disc ml-5 flex flex-col gap-1"></ul>
+          <p class="text-xs text-slate-500 mt-2">Оценки причин — качественные (низкая / средняя / высокая). Числа в JSON оставлены для совместимости и не являются точной вероятностью диагноза.</p>
         </div>
       </section>
 
@@ -349,6 +360,12 @@ async function sendSymptoms() {
     addMsg('ai', 'Ошибка запроса: ' + err.message + '. Убедитесь, что сервер запущен (uvicorn app.main:app).');
   } finally { setLoading(false); }
 }
+function updateFinalBtn() {
+  const okAnswers = Object.keys(state.answers).length === 3;
+  const okConsent = $('consentCheck') ? $('consentCheck').checked : false;
+  $('finalBtn').disabled = !(okAnswers && okConsent);
+}
+if ($('consentCheck')) $('consentCheck').addEventListener('change', updateFinalBtn);
 function renderQuestions() {
   const box = $('questions');
   box.innerHTML = '';
@@ -367,18 +384,22 @@ function renderQuestions() {
         state.answers[q.id] = opt;
         [...row.children].forEach(x => x.classList.remove('bg-blue-600', 'text-white'));
         b.classList.add('bg-blue-600', 'text-white');
-        $('finalBtn').disabled = Object.keys(state.answers).length !== 3;
+        updateFinalBtn();
       };
       row.appendChild(b);
     });
     card.appendChild(row);
     box.appendChild(card);
   });
-  $('finalBtn').disabled = true;
+  updateFinalBtn();
 }
 
 // ---------- Триаж: final → шкала и карточки ----------
 $('finalBtn').onclick = async () => {
+  if ($('consentCheck') && !$('consentCheck').checked) {
+    addMsg('ai', 'Подтвердите согласие: «Я понимаю, что это не диагноз» — отметьте галочку перед оценкой.');
+    return;
+  }
   const p = profile();
   const payload = { ...p, answers: state.questions.map(q => ({ question_id: q.id, answer: state.answers[q.id] || 'Не уверен(а)' })) };
   setLoading(true);
@@ -387,19 +408,25 @@ $('finalBtn').onclick = async () => {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
     renderResult(d);
-    addMsg('ai', `Готово: уровень ${d.triage_level}, риск ${d.risk_score}%. Подробности — в карточке результата ниже.`);
+    addMsg('ai', `Готово (предварительная оценка, не диагноз): уровень ${d.triage_level}, эвристический балл ${d.risk_score}. Обсудите с врачом — подробности в карточке ниже.`);
     document.querySelector('#result').scrollIntoView({behavior: 'smooth'});
   } catch (err) {
     addMsg('ai', 'Ошибка оценки: ' + err.message);
   } finally { setLoading(false); }
 };
 const LV_COLOR = { GREEN: 'bg-green-600', YELLOW: 'bg-yellow-500', ORANGE: 'bg-orange-600', RED: 'bg-red-600' };
+function bandLabel(prob) {
+  const p = Number(prob);
+  if (p < 30) return 'низкая';
+  if (p <= 60) return 'средняя';
+  return 'высокая';
+}
 function renderResult(d) {
   $('result').classList.remove('hidden');
   const badge = $('triageBadge');
   badge.textContent = d.triage_level;
   badge.className = 'px-3 py-1 rounded-full font-bold text-white ' + (LV_COLOR[d.triage_level] || 'bg-slate-600');
-  $('riskScore').textContent = d.risk_score + '%';
+  $('riskScore').textContent = d.risk_score + ' (эвристический балл, не вероятность диагноза)';
   $('riskMarker').style.left = `calc(${Math.min(100, Math.max(0, d.risk_score))}% - 3px)`;
   $('bmiVal').textContent = d.bmi;
   $('bmiCat').textContent = d.bmi_category;
@@ -412,7 +439,7 @@ function renderResult(d) {
     el.className = 'border rounded-xl p-2.5 bg-slate-50';
     el.innerHTML = `<div class="flex justify-between gap-2"><b>${c.name}</b><span class="font-mono text-xs bg-white border rounded px-1.5 py-0.5">${c.icd10}</span></div>
       <div class="h-2 rounded bg-slate-200 mt-1.5"><div class="h-2 rounded bg-blue-600" style="width:${c.probability}%"></div></div>
-      <div class="text-xs text-slate-600 mt-1">${c.probability}% · ${c.reason || ''}</div>`;
+      <div class="text-xs text-slate-600 mt-1">вероятность: ${bandLabel(c.probability)} (возможная причина, не диагноз) · ${c.reason || ''}</div>`;
     conds.appendChild(el);
   });
   $('diet').innerHTML =
@@ -428,6 +455,8 @@ function renderResult(d) {
   $('evList').innerHTML = d.evidence_sources.map(e =>
     `<a class="text-blue-700 underline" target="_blank" rel="noopener" href="${e.url}">${e.title}</a><span class="text-xs text-slate-500"> [${e.type}]</span>`
   ).join('<br/>');
+  $('rulesVer').textContent = d.rules_version || '—';
+  $('breakdown').innerHTML = (d.score_breakdown || []).map(b => `<li>${b.reason} — +${b.points}</li>`).join('') || '<li class="text-slate-500">Дополнительных баллов нет — базовый уровень.</li>';
 }
 
 // ---------- Спорт ----------

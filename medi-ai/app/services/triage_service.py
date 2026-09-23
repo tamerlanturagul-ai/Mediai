@@ -4,16 +4,18 @@ from __future__ import annotations
 from typing import List, Tuple
 
 from ..domain.rules import (
+    RULES_VERSION,
     _answer_is_positive,
     _answer_is_unsure,
     _gi_diabetes_obesity_context,
-    _keyword_score,
+    _keyword_score_detailed,
     _kw_hit,
     _norm_lang,
     _normalize_med_text,
     _surgery_suspected,
     bmi_category,
     calc_bmi,
+    likelihood_label,
     normalize_zone,
     triage_level_from_score,
 )
@@ -41,10 +43,12 @@ def evaluate_final(req: TriageFinalRequest) -> dict:
     # --- базовый скоринг ---
     score = 0.0
     reasons: List[str] = []
+    breakdown: List[dict] = []
 
-    kw_score, kw_flags = _keyword_score(t)
+    kw_score, kw_flags, kw_breakdown = _keyword_score_detailed(t)
     score += kw_score
     reasons.extend(kw_flags)
+    breakdown.extend(kw_breakdown)
 
     # Ответы на 3 вопроса: каждый «Да» сильно повышает риск.
     positives = sum(1 for a in req.answers if _answer_is_positive(a.answer))
@@ -52,26 +56,34 @@ def evaluate_final(req: TriageFinalRequest) -> dict:
     weight_map = {"chest": 18, "head": 18, "abdomen": 16, "skin": 12, "limb": 12, "general": 14}
     w = weight_map.get(zone, 14)
     if positives:
-        score += positives * w
+        pts = positives * w
+        score += pts
         reasons.append(f"положительных ответов на уточняющие вопросы: {positives}/3")
+        breakdown.append({"reason": f"положительных ответов на уточняющие вопросы: {positives}/3", "points": float(pts)})
 
     # Возраст
     if req.age >= 65:
         score += 10
         reasons.append("возраст ≥65")
+        breakdown.append({"reason": "возраст ≥65", "points": 10.0})
     elif req.age >= 50:
         score += 5
+        breakdown.append({"reason": "возраст 50–64", "points": 5.0})
 
     # ИМТ
     if bmi >= 30:
         score += 8
         reasons.append(f"ИМТ {bmi} (ожирение)")
+        breakdown.append({"reason": f"ИМТ {bmi} (ожирение)", "points": 8.0})
     elif bmi >= 25:
         score += 3
+        breakdown.append({"reason": f"ИМТ {bmi} (избыточная масса тела)", "points": 3.0})
 
     # Неопределённость («не уверен») — небольшой плюс к осторожности
     unsure = sum(1 for a in req.answers if _answer_is_unsure(a.answer))
-    score += unsure * 4
+    if unsure:
+        score += unsure * 4
+        breakdown.append({"reason": f"неуверенных ответов: {unsure}/3", "points": float(unsure * 4)})
 
     score = max(0.0, min(100.0, round(score, 1)))
     level = triage_level_from_score(score)
@@ -94,6 +106,8 @@ def evaluate_final(req: TriageFinalRequest) -> dict:
         "forbidden_actions": forbidden,
         "evidence_sources": evidence,
         "_debug_reasons": reasons,
+        "score_breakdown": breakdown,
+        "rules_version": RULES_VERSION,
     }
 
 def _build_probable_conditions(
@@ -444,7 +458,8 @@ def _build_actions(
                 f"3. For prevention — {see_doctor}, routine.",
             ]
         if top:
-            actions.append(f"Differential to discuss: {top.name} ({top.icd10}), ~{top.probability}%.")
+            band = likelihood_label(top.probability, "en")
+            actions.append(f"Possible cause to discuss with a doctor (not a diagnosis), likelihood: {band} — {top.name} ({top.icd10}).")
         forbidden = [
             "Do not self-medicate with antibiotics or hormones.",
             "Do not apply a heating pad to acute abdominal pain.",
@@ -483,7 +498,8 @@ def _build_actions(
                 f"3. Алдын алу үшін — {see_doctor}, жоспарлы.",
             ]
         if top:
-            actions.append(f"Дәрігермен талқылауға: {top.name} ({top.icd10}), ~{top.probability}%.")
+            band = likelihood_label(top.probability, "kz")
+            actions.append(f"Дәрігермен талқыланатын мүмкін себеп (диагноз емес, бетпе-бет қаралу қажет), ықтималдығы: {band} — {top.name} ({top.icd10}).")
         forbidden = [
             "Антибиотик пен гормонмен өздігінен емделмеңіз.",
             "Жедел іш ауырсынуында жылытқыш баспаңыз.",
@@ -525,7 +541,8 @@ def _build_actions(
         ]
 
     if top:
-        actions.append(f"Дифдиагноз для обсуждения с врачом: {top.name} ({top.icd10}), ~{top.probability}%.")
+        band = likelihood_label(top.probability, "ru")
+        actions.append(f"Возможные причины для обсуждения с врачом (не диагноз, требуется очно): {top.name} ({top.icd10}), вероятность: {band}.")
 
     forbidden = [
         "Не занимайтесь самолечением антибиотиками и гормонами без назначения.",
