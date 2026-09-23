@@ -197,6 +197,8 @@ img,svg{display:block;vertical-align:middle}
 }
 @media (min-width:1024px){
 .lg\:grid-cols-\[300px_1fr\]{grid-template-columns:300px 1fr}
+.lg\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.lg\:col-span-2{grid-column:span 2/span 2}
 .lg\:sticky{position:sticky}
 .lg\:top-20{top:5rem}
 }
