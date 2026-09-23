@@ -149,6 +149,11 @@ class EvidenceSource(BaseModel):
     type: str = Field(description="WHO / PubMed / Protocol")
 
 
+class ScoreBreakdownItem(BaseModel):
+    reason: str
+    points: float
+
+
 class TriageFinalResponse(BaseModel):
     bmi: float
     bmi_category: str
@@ -162,6 +167,9 @@ class TriageFinalResponse(BaseModel):
     forbidden_actions: List[str]
     evidence_sources: List[EvidenceSource]
     lang: Lang = Field(default="ru")
+    # TASK-004: transparency — how the score was counted + rules version.
+    score_breakdown: List[ScoreBreakdownItem] = Field(default_factory=list)
+    rules_version: str = Field(default="1.1")
 
 
 class ConditionItem(BaseModel):

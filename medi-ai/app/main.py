@@ -113,6 +113,8 @@ def triage_final(req: TriageFinalRequest) -> TriageFinalResponse:
         forbidden_actions=result["forbidden_actions"],
         evidence_sources=result["evidence_sources"],
         lang=lang,  # type: ignore[arg-type]
+        score_breakdown=result.get("score_breakdown", []),
+        rules_version=result.get("rules_version", "1.1"),
     )
 
 

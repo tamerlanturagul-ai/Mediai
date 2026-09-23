@@ -14,7 +14,10 @@ Intentional contract changes vs TASK-002 baseline:
 from __future__ import annotations
 
 import re
-from typing import List, Tuple
+from typing import Dict, List, Tuple
+
+# TASK-004: honest outputs — rules version exposed to client via score_breakdown.
+RULES_VERSION = "1.1"
 
 
 # ---------------------------------------------------------------------------
@@ -219,30 +222,80 @@ def _kw_hit(kw: str, text_norm: str) -> bool:
 
 def _keyword_score(t: str) -> Tuple[float, List[str]]:
     """Эвристический скоринг по свободному тексту. Возвращает (баллы, флаги)."""
+    score, flags, _ = _keyword_score_detailed(t)
+    return score, flags
+
+
+# TASK-004: single source of truth for keyword weights (no retune).
+# (keywords, points, flag) — identical values to pre-004 _keyword_score.
+RED_SCORE_GROUPS: List[Tuple[List[str], float, str]] = [
+    (["боль за грудиной", "давит в груди", "жжет в груди", "отдаёт в руку", "холодный пот", "удушье", "нехватка воздуха",
+      "chest pain", "pressing chest", "cold sweat", "shortness of breath", "төс артындағы ауырсыну", "суық тер", "ентігу"], 38, "кардиальный красный флаг"),
+    (["перекос лица", "онемела рука", "нарушение речи", "инсульт", "fast", "face droop", "arm weakness", "stroke", "бет қисаюы"], 42, "неврологический красный флаг (FAST)"),
+    (["рвота кофейной", "черный стул", "мелена", "кровь в стуле", "кровотечение", "coffee-ground", "black stool", "bleeding", "қара нәжіс"], 40, "кровотечение ЖКТ"),
+    (["острая боль справа внизу", "миграция боли", "твёрдый живот", "твердый живот", "доскообразный", "нет стула и газов", "задержка стула",
+      "right lower", "migrating pain", "rigid abdomen", "оң жақ", "қатайған іш"], 36, "острая хирургическая патология"),
+    (["анафилакси", "отёк губ", "отек губ", "отёк языка", "задыхаюсь", "anaphylaxis", "lip swelling", "анафилаксия"], 45, "анафилаксия"),
+    (["температура 39", "температура 40", "38.5", "39", "озноб", "спутанность", "потеря сознания", "обморок", "судороги",
+      "fever", "chills", "confusion", "faint", "қызба", "қалтырау"], 25, "системная тяжесть"),
+    (["тошнота", "рвота", "лихорадка", "температура", "nausea", "vomiting", "жүрек айну", "құсу"], 10, "системные симптомы"),
+]
+
+CHRONIC_MARKERS = ["диабет", "давление", "гипертония", "астма", "ибс", "инфаркт в прошлом", "diabetes", "hypertension", "asthma", "қант диабеті"]
+CHRONIC_POINTS = 6.0
+CHRONIC_FLAG = "отягощённый анамнез"
+
+
+def _keyword_score_detailed(t: str) -> Tuple[float, List[str], List[Dict[str, float | str]]]:
+    """Same weights as _keyword_score + per-reason points for transparency.
+
+    Returns (total, flags, breakdown) where breakdown is a list of
+    {"reason": flag, "points": pts} in hit order. No new weights.
+    """
     score = 0.0
     flags: List[str] = []
+    breakdown: List[Dict[str, float | str]] = []
     tn = _normalize_med_text(t)
-    red_groups = [
-        (["боль за грудиной", "давит в груди", "жжет в груди", "отдаёт в руку", "холодный пот", "удушье", "нехватка воздуха",
-          "chest pain", "pressing chest", "cold sweat", "shortness of breath", "төс артындағы ауырсыну", "суық тер", "ентігу"], 38, "кардиальный красный флаг"),
-        (["перекос лица", "онемела рука", "нарушение речи", "инсульт", "fast", "face droop", "arm weakness", "stroke", "бет қисаюы"], 42, "неврологический красный флаг (FAST)"),
-        (["рвота кофейной", "черный стул", "мелена", "кровь в стуле", "кровотечение", "coffee-ground", "black stool", "bleeding", "қара нәжіс"], 40, "кровотечение ЖКТ"),
-        (["острая боль справа внизу", "миграция боли", "твёрдый живот", "твердый живот", "доскообразный", "нет стула и газов", "задержка стула",
-          "right lower", "migrating pain", "rigid abdomen", "оң жақ", "қатайған іш"], 36, "острая хирургическая патология"),
-        (["анафилакси", "отёк губ", "отек губ", "отёк языка", "задыхаюсь", "anaphylaxis", "lip swelling", "анафилаксия"], 45, "анафилаксия"),
-        (["температура 39", "температура 40", "38.5", "39", "озноб", "спутанность", "потеря сознания", "обморок", "судороги",
-          "fever", "chills", "confusion", "faint", "қызба", "қалтырау"], 25, "системная тяжесть"),
-        (["тошнота", "рвота", "лихорадка", "температура", "nausea", "vomiting", "жүрек айну", "құсу"], 10, "системные симптомы"),
-    ]
-    for keywords, pts, flag in red_groups:
+    for keywords, pts, flag in RED_SCORE_GROUPS:
         if any(_kw_hit(k, tn) for k in keywords):
             score += pts
             flags.append(flag)
+            breakdown.append({"reason": flag, "points": float(pts)})
     # Возраст и хронические маркеры
-    if any(_kw_hit(k, tn) for k in ["диабет", "давление", "гипертония", "астма", "ибс", "инфаркт в прошлом", "diabetes", "hypertension", "asthma", "қант диабеті"]):
-        score += 6
-        flags.append("отягощённый анамнез")
-    return score, flags
+    if any(_kw_hit(k, tn) for k in CHRONIC_MARKERS):
+        score += CHRONIC_POINTS
+        flags.append(CHRONIC_FLAG)
+        breakdown.append({"reason": CHRONIC_FLAG, "points": float(CHRONIC_POINTS)})
+    return score, flags, breakdown
+
+
+# ---------------------------------------------------------------------------
+# TASK-004: qualitative likelihood bands (documented thresholds).
+# prob < 30 -> low; 30 <= prob <= 60 -> medium; prob > 60 -> high.
+# Numeric probability stays in JSON for compat; human text uses bands only.
+# ---------------------------------------------------------------------------
+
+LIKELIHOOD_I18N: Dict[str, Dict[str, str]] = {
+    "ru": {"low": "низкая", "medium": "средняя", "high": "высокая"},
+    "en": {"low": "low", "medium": "medium", "high": "high"},
+    "kz": {"low": "төмен", "medium": "орташа", "high": "жоғары"},
+}
+
+
+def likelihood_band(probability: float) -> str:
+    """Map numeric probability to qualitative band: low / medium / high."""
+    p = float(probability)
+    if p < 30:
+        return "low"
+    if p <= 60:
+        return "medium"
+    return "high"
+
+
+def likelihood_label(probability: float, lang: str = "ru") -> str:
+    """Localized band label (ru/en/kz), fallback to ru."""
+    l = _norm_lang(lang)
+    return LIKELIHOOD_I18N[l][likelihood_band(probability)]
 
 
 # ---------------------------------------------------------------------------

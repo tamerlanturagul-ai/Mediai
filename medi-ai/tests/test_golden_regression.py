@@ -62,6 +62,14 @@ def test_golden_matches_before():
         assert cur["diet"]["regime"] == exp["diet"]["regime"], f"{name} diet.regime"
         # probable conditions top-3 icd + names
         assert [c["icd10"] for c in cur["probable_conditions"]] == [c["icd10"] for c in exp["probable_conditions"]], f"{name} icds"
-        assert cur["actions"] == exp["actions"], f"{name} actions"
+        # TASK-004: actions last line changed to qualitative bands (no ~X%).
+        # Level guidance lines (all but last) must stay identical to golden.
+        assert cur["actions"][:-1] == exp["actions"][:-1], f"{name} actions guidance"
+        last = cur["actions"][-1]
+        assert "%" not in "".join(cur["actions"]) and "~" not in last, f"{name} honest actions"
+        # last line must still reference the same top condition + honest wording
+        top_name = exp["probable_conditions"][0]["name"]
+        assert top_name in last, f"{name} top condition kept"
+        assert any(k in last for k in ("не диагноз", "not a diagnosis", "диагноз емес")), f"{name} honesty marker"
         assert cur["see_doctor"] == exp["see_doctor"], f"{name} see_doctor"
         assert cur["emergency_call"] == exp["emergency_call"], f"{name} emergency"
