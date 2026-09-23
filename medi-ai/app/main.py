@@ -1,13 +1,19 @@
 """Сервер FastAPI MediAI: роуты, статика, CORS."""
-from __future__ import annotations
+# NOTE (TASK-009): no `from __future__ import annotations` here on purpose.
+# slowapi's @limiter.limit wraps endpoints, and FastAPI resolves parameter
+# annotations in the wrapper's module namespace when they are PEP 563
+# strings (UploadFile then fails as ForwardRef). Real annotations avoid that.
 
+import logging
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi.errors import RateLimitExceeded
 
 from .schemas import (
     ConditionsResponse,
@@ -20,7 +26,19 @@ from .schemas import (
     TriageInitialRequest,
     TriageInitialResponse,
 )
+from .security import (
+    LIMIT_CONDITIONS,
+    LIMIT_SPORT_PLAN,
+    LIMIT_TRIAGE_FINAL,
+    LIMIT_TRIAGE_INITIAL,
+    LIMIT_TRIAGE_PHOTO,
+    get_api_keys,
+    key_matches,
+    limiter,
+    requires_auth,
+)
 from .services.photo_service import (
+    MAX_PHOTO_BYTES,
     MAX_PHOTOS_PER_TRIAGE,
     PhotoUploadError,
     get_photo_info,
@@ -37,6 +55,20 @@ from .triage_engine import (
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 INDEX_HTML = STATIC_DIR / "index.html"
+
+logger = logging.getLogger(__name__)
+
+# TASK-009 P0: generic client-facing error texts. Full tracebacks / paths /
+# module names / str(exc) go to server logs only, never to the client.
+GENERIC_VALIDATION_ERROR = "Ошибка валидации запроса. Проверьте параметры и попробуйте снова."
+GENERIC_SERVER_ERROR = "Внутренняя ошибка сервера."
+GENERIC_RATE_LIMIT_ERROR = "Превышен лимит запросов. Попробуйте позже."
+GENERIC_AUTH_ERROR = "Нужен API-ключ (заголовок X-API-Key)."
+
+# Multipart framing overhead slack for the early Content-Length pre-check.
+# The exact 8 MB cap is enforced on file bytes during the chunked read.
+UPLOAD_EARLY_REJECT_SLACK = 64 * 1024
+UPLOAD_READ_CHUNK = 1024 * 1024  # 1 MB
 
 
 def _cors_origins() -> list[str]:
@@ -72,6 +104,46 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+# TASK-009 P0: rate limiter state + 429 handler (generic body, no internals).
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:  # type: ignore[no-untyped-def]
+    return JSONResponse(status_code=429, content={"detail": GENERIC_RATE_LIMIT_ERROR})
+
+
+@app.exception_handler(RequestValidationError)
+def validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:  # type: ignore[no-untyped-def]
+    # TASK-009 P0: 422 with GENERIC text. Field names / rejected values /
+    # paths stay in server logs only.
+    logger.warning("validation failed: %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=422, content={"detail": GENERIC_VALIDATION_ERROR})
+
+
+@app.exception_handler(Exception)
+def unexpected_handler(request: Request, exc: Exception) -> JSONResponse:  # type: ignore[no-untyped-def]
+    # TASK-009 P0: unexpected failure -> logged with traceback, client gets
+    # a generic 500. (HTTPException keeps its own handler: Starlette matches
+    # HTTPException before this generic Exception handler in the MRO walk.)
+    logger.exception("unhandled error: %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": GENERIC_SERVER_ERROR})
+
+
+@app.middleware("http")
+async def api_key_middleware(request: Request, call_next):  # type: ignore[no-untyped-def]
+    """TASK-009 P0: X-API-Key gate on all /api/* except /api/health.
+
+    Keys come from the API_KEYS env var (comma-separated). When API_KEYS is
+    unset/empty the API stays open (local dev + legacy tests); production
+    MUST set API_KEYS. Comparison is constant-time (hmac.compare_digest).
+    """
+    if requires_auth(request.url.path, request.method):
+        keys = get_api_keys()
+        if keys and not key_matches(request.headers.get("x-api-key"), keys):
+            return JSONResponse(status_code=401, content={"detail": GENERIC_AUTH_ERROR})
+    return await call_next(request)
+
 
 @app.get("/", include_in_schema=False)
 def serve_index() -> FileResponse:
@@ -86,14 +158,16 @@ def health() -> dict:
 
 
 @app.get("/api/conditions", response_model=ConditionsResponse)
-def list_conditions(lang: str = "ru") -> ConditionsResponse:
+@limiter.limit(LIMIT_CONDITIONS)
+def list_conditions(request: Request, lang: str = "ru") -> ConditionsResponse:
     lang = _resolve_lang(lang)
     catalog = get_conditions_catalog(lang)
     return ConditionsResponse(categories=catalog)
 
 
 @app.post("/api/triage/initial", response_model=TriageInitialResponse)
-def triage_initial(req: TriageInitialRequest) -> TriageInitialResponse:
+@limiter.limit(LIMIT_TRIAGE_INITIAL)
+def triage_initial(request: Request, req: TriageInitialRequest) -> TriageInitialResponse:
     questions = generate_initial_questions(req)
     # Гарантия контракта: ровно 3 вопроса
     if len(questions) != 3:
@@ -102,15 +176,51 @@ def triage_initial(req: TriageInitialRequest) -> TriageInitialResponse:
     return TriageInitialResponse(questions=questions, lang=lang)  # type: ignore[arg-type]
 
 
+def _read_upload_capped(file: UploadFile) -> bytes:
+    """Chunked file read with an exact MAX_PHOTO_BYTES cap -> 413.
+
+    Runs in a worker thread (sync endpoint): no event-loop blocking, no
+    unbounded buffering of attacker-controlled bodies.
+    """
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = file.file.read(UPLOAD_READ_CHUNK)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_PHOTO_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Файл слишком большой (максимум {MAX_PHOTO_BYTES} байт).",
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 @app.post("/api/triage/photo", response_model=PhotoUploadResponse)
-async def triage_photo(file: UploadFile = File(...)) -> PhotoUploadResponse:
+@limiter.limit(LIMIT_TRIAGE_PHOTO)
+def triage_photo(request: Request, file: UploadFile = File(...)) -> PhotoUploadResponse:
     """Store a photo envelope for the doctor (TASK-008, B4-variant-1).
 
     Accepts jpeg/png/webp up to 8 MB. Returns {photo_id, quality, hint}.
     The image is NEVER a diagnostic signal: quality is a Pillow-only
     capture hint (ok | too_dark | too_blurry), no ML, no diagnosis.
+
+    TASK-009 P0: sync def (FastAPI threadpool, no event-loop blocking on
+    Pillow); early Content-Length pre-check + chunked capped read -> 413.
     """
-    data = await file.read()
+    raw_len = request.headers.get("content-length")
+    if raw_len is not None:
+        try:
+            if int(raw_len) > MAX_PHOTO_BYTES + UPLOAD_EARLY_REJECT_SLACK:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Файл слишком большой (максимум {MAX_PHOTO_BYTES} байт).",
+                )
+        except ValueError:
+            pass
+    data = _read_upload_capped(file)
     try:
         saved = save_photo(data, file.content_type, file.filename)
     except PhotoUploadError as exc:
@@ -119,7 +229,8 @@ async def triage_photo(file: UploadFile = File(...)) -> PhotoUploadResponse:
 
 
 @app.post("/api/triage/final", response_model=TriageFinalResponse)
-def triage_final(req: TriageFinalRequest) -> TriageFinalResponse:
+@limiter.limit(LIMIT_TRIAGE_FINAL)
+def triage_final(request: Request, req: TriageFinalRequest) -> TriageFinalResponse:
     # TASK-008: photo_ids are validated here (UUID format + max 3 already
     # enforced by schema). Unknown ids -> 422. Attached photos are carried
     # into the response "for the doctor" and MUST NOT change the score —
@@ -131,12 +242,18 @@ def triage_final(req: TriageFinalRequest) -> TriageFinalResponse:
         info = get_photo_info(pid)
         if info is None and not photo_exists(pid):
             raise HTTPException(status_code=422, detail=f"Неизвестный photo_id '{pid}'")
-        info = info or {"photo_id": pid, "quality": "ok"}
+        info = info or {"photo_id": pid, "quality": "unknown"}
         attached.append(PhotoAttachment(photo_id=info["photo_id"], quality=info["quality"]))  # type: ignore[arg-type]
     try:
         result = evaluate_final(req)
-    except Exception as exc:  # fail-safe с понятным сообщением
-        raise HTTPException(status_code=422, detail=f"Ошибка оценки триажа: {exc}") from exc
+    except ValueError:
+        # TASK-009 P0: validation-flavoured engine failure -> generic 422.
+        logger.warning("triage evaluation rejected: %s %s", request.method, request.url.path)
+        raise HTTPException(status_code=422, detail=GENERIC_VALIDATION_ERROR)
+    except Exception:
+        # TASK-009 P0: unexpected failure -> logged, generic 500 (no str(exc)).
+        logger.exception("triage evaluation failed: %s %s", request.method, request.url.path)
+        raise HTTPException(status_code=500, detail=GENERIC_SERVER_ERROR)
     lang = _resolve_lang(getattr(req, "lang", "ru"))
     return TriageFinalResponse(
         bmi=result["bmi"],
@@ -158,11 +275,18 @@ def triage_final(req: TriageFinalRequest) -> TriageFinalResponse:
 
 
 @app.post("/api/sport/plan", response_model=SportPlanResponse)
-def sport_plan(req: SportPlanRequest) -> SportPlanResponse:
+@limiter.limit(LIMIT_SPORT_PLAN)
+def sport_plan(request: Request, req: SportPlanRequest) -> SportPlanResponse:
     try:
         result = build_sport_plan(req)
-    except Exception as exc:
-        raise HTTPException(status_code=422, detail=f"Ошибка расчёта спорт-плана: {exc}") from exc
+    except ValueError:
+        # TASK-009 P0: validation-flavoured engine failure -> generic 422.
+        logger.warning("sport plan rejected: %s %s", request.method, request.url.path)
+        raise HTTPException(status_code=422, detail=GENERIC_VALIDATION_ERROR)
+    except Exception:
+        # TASK-009 P0: unexpected failure -> logged, generic 500 (no str(exc)).
+        logger.exception("sport plan failed: %s %s", request.method, request.url.path)
+        raise HTTPException(status_code=500, detail=GENERIC_SERVER_ERROR)
     return SportPlanResponse(**result)
 
 
