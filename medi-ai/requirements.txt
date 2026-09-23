@@ -2,3 +2,5 @@ fastapi>=0.110,<1
 uvicorn>=0.29
 pydantic>=2.6
 httpx>=0.27
+pillow>=10
+python-multipart>=0.0.9  # multipart parsing for POST /api/triage/photo (TASK-008)
