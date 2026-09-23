@@ -1,5 +1,14 @@
 # CHANGELOG (from git history, TASK-002 → TASK-010)
 
+## TASK-024 — Frontend rework CLINICAL CONSOLE (2026-09-24, `ac8a059`)
+- Переписан `medi-ai/app/static/index.html` (1614 строк): CLINICAL CONSOLE — hero + 3-pill step rail + сетка интейк/консультация (5fr/7fr при ≥1120px); спек — `medi-ai/DESIGN.md` (325 строк).
+- Токены на CSS-переменных (~50: surfaces/ink/lines, teal-акцент, семантика `data-level`/`data-kind`, карточки без теней).
+- Закрыт дефект A2: YELLOW-бейдж `#713f12` на `#facc15` (контраст ~6:1 вместо ~1.9:1).
+- Ответы хранятся и шлются каноном `yes`/`no`/`unsure` независимо от языка UI (RU/EN/KZ).
+- Вендоренные шрифты Golos Text 400/500/600 × cyrillic/latin (`fonts/*.woff2`, OFL-1.1) + `mark.png` + `favicon.png`; CDN нет, страница работает офлайн.
+- `start-jury.bat`: запуск для жюри в один клик на `http://127.0.0.1:8001` (порт 8001 — без конфликта с классическим `:8000`).
+- Скриншоты `shot024_*.png` (9 шт.: 1440 RU/EN/KZ + mobile 390/360 + result). Бэкенд, тесты, Dockerfile, CI не тронуты.
+
 ## TASK-010 — Quality configs + CI gates + docs (2026-09-23)
 - `pyproject.toml`: pytest (`testpaths`, `pythonpath`), ruff (`line-length 127`,
   `target py310`), mypy strict-override for `app/domain` + `app/services`.
