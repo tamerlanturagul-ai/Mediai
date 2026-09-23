@@ -117,13 +117,30 @@
               <button data-zone="кожа" class="zoneBtn px-3 py-1.5 rounded-full border text-sm">Кожа</button>
             </div>
             <p class="mt-2 text-sm">Выбрано: <b id="zoneLabel">живот</b></p>
+            <div class="mt-3">
+              <p class="text-sm font-semibold mb-1">Частые жалобы — подставить одним нажатием</p>
+              <div class="flex flex-wrap gap-2" id="presetRow">
+                <button data-preset="throat-fever" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Боль в горле + температура</button>
+                <button data-preset="chest-press" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Давящая боль в груди</button>
+                <button data-preset="abdomen-rl" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Боль справа внизу живота</button>
+                <button data-preset="migraine" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Мигренеподобная головная боль</button>
+                <button data-preset="rash" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Сыпь распространяется</button>
+                <button data-preset="back-numb" class="presetBtn px-3 py-1.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs">Боль в спине + онемение</button>
+              </div>
+              <p class="mt-1 text-xs text-slate-500">Пресет заполняет зону, текст и теги. Зона «голова» покрывает горло/шею (маппинг горло→голова).</p>
+            </div>
           </div>
         </div>
       </section>
 
       <!-- Чат -->
       <section class="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col">
-        <h2 class="font-bold mb-1">2. Опишите симптомы и пройдите уточнение</h2>
+        <h2 class="font-bold mb-1">Шаг 1–2. Опишите симптомы и пройдите уточнение</h2>
+        <ol id="steps" class="flex flex-wrap items-center gap-2 text-xs mb-3" aria-label="Этапы триажа">
+          <li data-step="1" class="px-2.5 py-1 rounded-full border">Шаг 1 — профиль и симптомы</li>
+          <li data-step="2" class="px-2.5 py-1 rounded-full border">Шаг 2 — уточнение: вопрос <span id="stepQpos">–</span>/3</li>
+          <li data-step="3" class="px-2.5 py-1 rounded-full border">Шаг 3 — оценка + как посчитали</li>
+        </ol>
         <div id="chat" class="chat-scroll flex flex-col gap-3 max-h-[420px] overflow-y-auto border rounded-xl p-3 bg-slate-50 mb-3">
           <div class="self-start max-w-[85%] bg-white border rounded-xl px-3 py-2 text-sm">
             Здравствуйте! Я MediAI. Опишите симптомы своими словами в поле ниже и нажмите «Отправить» —
@@ -131,7 +148,7 @@
           </div>
         </div>
         <div id="loader" class="hidden items-center gap-2 text-sm text-slate-500 mb-2 loader-dots">
-          <span></span><span></span><span></span> MediAI думает…
+          <span></span><span></span><span></span> Запрос выполняется…
         </div>
         <div id="questions" class="flex flex-col gap-3 mb-3"></div>
         <!-- ChatGPT-инпут с кнопкой + -->
@@ -161,6 +178,7 @@
         <div id="emergencyBanner" class="hidden mb-3 p-3 rounded-xl bg-red-600 text-white text-sm font-semibold"></div>
         <h2 class="font-bold mb-2">Результат триажа (предварительный, не диагноз)</h2>
         <p class="text-xs text-slate-500 mb-2">Эвристическая оценка для обсуждения с врачом. Не ставит диагноз и не заменяет очный осмотр.</p>
+        <p id="framing" class="mb-3 p-3 rounded-xl bg-slate-50 border text-sm text-slate-700"></p>
         <div class="flex items-center gap-3 mb-1 text-sm">
           <span id="triageBadge" class="px-3 py-1 rounded-full font-bold text-white">—</span>
           <span>Риск: <b id="riskScore">—</b></span>
@@ -210,7 +228,7 @@
 
       <!-- Спорт -->
       <section id="sport" class="bg-white rounded-2xl border border-slate-200 p-5">
-        <h2 class="font-bold mb-1">3. Спорт-план</h2>
+        <h2 class="font-bold mb-1">Спорт-план</h2>
         <p class="text-sm text-slate-500 mb-3">Реалистичный темп без завышенных ожиданий. Данные профиля подставляются из сайдбара.</p>
         <div class="grid sm:grid-cols-3 gap-3 text-sm">
           <label class="block">Цель
@@ -246,7 +264,87 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-const state = { zone: 'живот', tags: new Set(), questions: [], answers: {} };
+const state = { zone: 'живот', tags: new Set(), questions: [], answers: {}, qIndex: 0 };
+
+// ---------- Этапы (честный индикатор: переключается только по реальным ответам API) ----------
+function setStep(n) {
+  document.querySelectorAll('#steps [data-step]').forEach(li => {
+    const on = +li.dataset.step === n;
+    li.classList.toggle('bg-slate-900', on);
+    li.classList.toggle('text-white', on);
+  });
+}
+function setStepQpos() {
+  const done = Object.keys(state.answers).length;
+  $('stepQpos').textContent = state.questions.length ? String(Math.min(done + 1, 3)) : '–';
+}
+setStep(1);
+
+// ---------- Пресеты частых жалоб (используют state.tags + setZone; горло→голова) ----------
+const PRESETS = {
+  'throat-fever': { zone: 'голова', text: 'Болит горло, боль при глотании, температура 38.2, слабость второй день', tags: ['боль в горле', 'лихорадка'] },
+  'chest-press': { zone: 'грудь', text: 'Давящая боль за грудиной, отдаёт в левую руку, холодный пот, одышка', tags: ['острая боль', 'одышка'] },
+  'abdomen-rl': { zone: 'живот', text: 'Боль внизу живота справа, усиливается при ходьбе и кашле, тошнота, температура 37.8', tags: ['острая боль', 'тошнота'] },
+  'migraine': { zone: 'голова', text: 'Пульсирующая головная боль с одной стороны, тошнота, раздражают свет и звук', tags: ['острая боль', 'тошнота'] },
+  'rash': { zone: 'кожа', text: 'Красная сыпь быстро распространяется, зуд, отёк, поднялась температура', tags: ['сыпь', 'лихорадка'] },
+  'back-numb': { zone: 'конечности', text: 'Боль в пояснице отдаёт в ногу, онемение и мурашки', tags: ['острая боль'] },
+};
+function syncTagButtons() {
+  document.querySelectorAll('.tagBtn').forEach(b => {
+    const on = state.tags.has(b.dataset.tag);
+    b.classList.toggle('bg-blue-600', on);
+    b.classList.toggle('text-white', on);
+  });
+}
+function applyPreset(key) {
+  const p = PRESETS[key];
+  if (!p) return;
+  setZone(p.zone);
+  $('symptoms').value = p.text;
+  state.tags.clear();
+  p.tags.forEach(t => state.tags.add(t));
+  $('tagsInput').value = '';
+  syncTagButtons();
+  setStep(1);
+  addMsg('ai', 'Подставлен шаблон жалобы. Проверьте текст и теги, при необходимости дополните, затем нажмите «Отправить».');
+}
+document.querySelectorAll('.presetBtn').forEach(b => b.addEventListener('click', () => applyPreset(b.dataset.preset)));
+
+// ---------- Нейтральная рамка результата (уровень + ведущая группа МКБ, 3 языка) ----------
+function framingKind(level, icd) {
+  const code = String(icd || '');
+  // Острые группы МКБ — red-flag независимо от уровня (не занижаем срочность типа).
+  if (level === 'RED' || level === 'ORANGE') return 'redflag';
+  if (/^(I20|I21|I63|I64|K35|K56)/.test(code)) return 'redflag';
+  if (/^J06/.test(code)) return 'cold';
+  if (/^(I10|E11|E66|G43|G44|M54|K21|K25|K29|K59|K80|I48)/.test(code)) return 'chronic';
+  if (/^R69/.test(code)) return 'syndrome';
+  return 'syndrome';
+}
+const FRAMING = {
+  ru: {
+    cold: 'Картина ближе к острой респираторной инфекции. Это эвристика, а не диагноз: наблюдайте динамику 24–48 часов, при ухудшении обратитесь к врачу очно.',
+    chronic: 'Картина ближе к повторяющемуся/хроническому состоянию. Это эвристика, а не диагноз: запланируйте плановый визит к профильному врачу, ведите дневник симптомов.',
+    syndrome: 'Симптомы неспецифичны и требуют очной дифференциации. Это эвристика, а не диагноз: обсудите список возможных причин с врачом.',
+    redflag: 'Есть признаки, требующие очной оценки в ближайшие часы. Это эвристика, а не диагноз: не откладывайте визит, при ухудшении — 103/112.',
+  },
+  en: {
+    cold: 'The picture is closer to an acute respiratory infection. This is a heuristic, not a diagnosis: observe for 24–48 hours, seek in-person care if it worsens.',
+    chronic: 'The picture is closer to a recurrent/chronic condition. This is a heuristic, not a diagnosis: plan a routine visit to the relevant doctor, keep a symptom diary.',
+    syndrome: 'The symptoms are nonspecific and require in-person differentiation. This is a heuristic, not a diagnosis: discuss the listed possible causes with a doctor.',
+    redflag: 'There are signs requiring in-person evaluation within hours. This is a heuristic, not a diagnosis: do not delay the visit; if it worsens, call emergency.',
+  },
+  kz: {
+    cold: 'Көрініс жедел респираторлық инфекцияға жақын. Бұл эвристика, диагноз емес: 24–48 сағ бақылаңыз, күшейсе дәрігерге көрініңіз.',
+    chronic: 'Көрініс қайталанатын/созылмалы жағдайға жақын. Бұл эвристика, диагноз емес: бейінді дәрігерге жоспарлы барыңыз, симптом күнделігін жүргізіңіз.',
+    syndrome: 'Симптомдар бейспецификалық, бетпе-бет саралау қажет. Бұл эвристика, диагноз емес: мүмкін себептер тізімін дәрігермен талқылаңыз.',
+    redflag: 'Алдағы сағаттарда бетпе-бет бағалауды қажет ететін белгілер бар. Бұл эвристика, диагноз емес: баруды кешіктірмеңіз, күшейсе — 103/112.',
+  },
+};
+function framingText(level, icd, lang) {
+  const l = (lang === 'en' || lang === 'kz') ? lang : 'ru';
+  return FRAMING[l][framingKind(level, icd)];
+}
 
 // ---------- Мега-меню ----------
 const megaBtn = $('megaBtn'), megaMenu = $('megaMenu');
@@ -302,14 +400,15 @@ setZone('живот');
 // ---------- Теги ----------
 document.querySelectorAll('.tagBtn').forEach(b => b.addEventListener('click', () => {
   const t = b.dataset.tag;
-  if (state.tags.has(t)) { state.tags.delete(t); b.classList.remove('bg-blue-600', 'text-white'); }
-  else { state.tags.add(t); b.classList.add('bg-blue-600', 'text-white'); }
+  if (state.tags.has(t)) { state.tags.delete(t); }
+  else { state.tags.add(t); }
+  syncTagButtons();
 }));
 
 // ---------- Чат-инпут с кнопкой + ----------
 $('plusBtn').onclick = () => $('plusMenu').classList.toggle('hidden');
 $('plusDiet').onclick = () => { $('dietFlag').checked = true; $('plusMenu').classList.add('hidden'); addMsg('ai', 'Запрос лечебного питания включён — он будет учтён в финальной оценке.'); };
-$('plusClear').onclick = () => { $('chat').innerHTML = ''; $('questions').innerHTML = ''; $('result').classList.add('hidden'); $('plusMenu').classList.add('hidden'); };
+$('plusClear').onclick = () => { $('chat').innerHTML = ''; $('questions').innerHTML = ''; $('result').classList.add('hidden'); $('plusMenu').classList.add('hidden'); state.answers = {}; state.qIndex = 0; setStep(1); setStepQpos(); updateFinalBtn(); };
 $('plusSport').onclick = () => { $('plusMenu').classList.add('hidden'); document.querySelector('#sport').scrollIntoView({behavior: 'smooth'}); };
 
 function addMsg(who, text) {
@@ -348,15 +447,20 @@ async function sendSymptoms() {
   if (!p.symptoms_text || p.symptoms_text.length < 3) { addMsg('ai', 'Опишите симптомы чуть подробнее (минимум 3 символа).'); return; }
   addMsg('user', p.symptoms_text);
   setLoading(true);
+  // Скелетон только на время реального fetch (без искусственных задержек).
+  $('questions').innerHTML = '<div class="border rounded-xl p-3 bg-slate-50 animate-pulse"><div class="h-3 bg-slate-200 rounded w-2/3 mb-2"></div><div class="h-3 bg-slate-200 rounded w-1/2"></div><p class="text-xs text-slate-500 mt-2">Запрос выполняется…</p></div>';
   try {
     const r = await fetch('/api/triage/initial', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
     state.questions = data.questions;
     state.answers = {};
-    renderQuestions();
-    addMsg('ai', 'Чтобы исключить острые состояния, ответьте на 3 уточняющих вопроса ниже, затем нажмите «Получить оценку риска».');
+    state.qIndex = 0;
+    setStep(2);
+    renderOneQuestion();
+    addMsg('ai', 'Отвечайте по одному: ниже вопрос 1 из 3. После третьего станет доступна кнопка «Получить оценку риска».');
   } catch (err) {
+    $('questions').innerHTML = '';
     addMsg('ai', 'Ошибка запроса: ' + err.message + '. Убедитесь, что сервер запущен (uvicorn app.main:app).');
   } finally { setLoading(false); }
 }
@@ -364,35 +468,56 @@ function updateFinalBtn() {
   const okAnswers = Object.keys(state.answers).length === 3;
   const okConsent = $('consentCheck') ? $('consentCheck').checked : false;
   $('finalBtn').disabled = !(okAnswers && okConsent);
+  setStepQpos();
 }
 if ($('consentCheck')) $('consentCheck').addEventListener('change', updateFinalBtn);
-function renderQuestions() {
+// ---------- Триаж: 3 вопроса по одному (без пачки) ----------
+function renderOneQuestion() {
   const box = $('questions');
   box.innerHTML = '';
-  state.questions.forEach((q, i) => {
-    const card = document.createElement('div');
-    card.className = 'border rounded-xl p-3 bg-slate-50';
-    card.innerHTML = `<p class="text-sm font-medium mb-1">${i + 1}. ${q.text}</p>
-      <p class="text-xs text-slate-500 mb-2">${q.reason || ''}</p>`;
-    const row = document.createElement('div');
-    row.className = 'flex gap-2';
-    (q.options || ['Да', 'Нет', 'Не уверен(а)']).forEach(opt => {
-      const b = document.createElement('button');
-      b.className = 'ansBtn px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-blue-50';
-      b.textContent = opt;
-      b.onclick = () => {
-        state.answers[q.id] = opt;
-        [...row.children].forEach(x => x.classList.remove('bg-blue-600', 'text-white'));
-        b.classList.add('bg-blue-600', 'text-white');
-        updateFinalBtn();
-      };
-      row.appendChild(b);
-    });
-    card.appendChild(row);
-    box.appendChild(card);
+  const q = state.questions[state.qIndex];
+  if (!q) { updateFinalBtn(); return; }
+  const idx = state.qIndex;
+  const card = document.createElement('div');
+  card.className = 'border rounded-xl p-3 bg-slate-50';
+  card.innerHTML = `<p class="text-xs text-slate-500 mb-1">Вопрос ${idx + 1} из ${state.questions.length}</p>
+    <p class="text-sm font-medium mb-1">${q.text}</p>
+    <p class="text-xs text-slate-500 mb-2">${q.reason || ''}</p>`;
+  const row = document.createElement('div');
+  row.className = 'flex flex-wrap gap-2';
+  (q.options || ['Да', 'Нет', 'Не уверен(а)']).forEach(opt => {
+    const b = document.createElement('button');
+    b.className = 'ansBtn px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-blue-50';
+    if (state.answers[q.id] === opt) b.classList.add('bg-blue-600', 'text-white');
+    b.textContent = opt;
+    b.onclick = () => {
+      state.answers[q.id] = opt;
+      if (idx < state.questions.length - 1) { state.qIndex = idx + 1; }
+      renderOneQuestion();
+    };
+    row.appendChild(b);
   });
+  card.appendChild(row);
+  const nav = document.createElement('div');
+  nav.className = 'flex items-center gap-2 mt-2';
+  if (idx > 0) {
+    const back = document.createElement('button');
+    back.className = 'px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-slate-100';
+    back.textContent = '← Назад';
+    back.onclick = () => { state.qIndex = idx - 1; renderOneQuestion(); };
+    nav.appendChild(back);
+  }
+  const pos = document.createElement('span');
+  pos.className = 'text-xs text-slate-500';
+  const done = Object.keys(state.answers).length;
+  pos.textContent = `Отвечено: ${done}/3`;
+  nav.appendChild(pos);
+  card.appendChild(nav);
+  box.appendChild(card);
   updateFinalBtn();
 }
+// renderQuestions оставлен как алиас для совместимости (делегирует по одному).
+function renderQuestions() { state.qIndex = 0; renderOneQuestion(); }
 
 // ---------- Триаж: final → шкала и карточки ----------
 $('finalBtn').onclick = async () => {
@@ -408,7 +533,7 @@ $('finalBtn').onclick = async () => {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
     renderResult(d);
-    addMsg('ai', `Готово (предварительная оценка, не диагноз): уровень ${d.triage_level}, эвристический балл ${d.risk_score}. Обсудите с врачом — подробности в карточке ниже.`);
+    addMsg('ai', `Предварительная оценка (не диагноз): уровень ${d.triage_level}, эвристический балл ${d.risk_score}. Обсудите с врачом — детали в карточке ниже, включая «Как мы посчитали».`);
     document.querySelector('#result').scrollIntoView({behavior: 'smooth'});
   } catch (err) {
     addMsg('ai', 'Ошибка оценки: ' + err.message);
@@ -423,6 +548,10 @@ function bandLabel(prob) {
 }
 function renderResult(d) {
   $('result').classList.remove('hidden');
+  setStep(3);
+  const topIcd = (d.probable_conditions && d.probable_conditions[0] && d.probable_conditions[0].icd10) || '';
+  const fr = $('framing');
+  if (fr) fr.textContent = framingText(d.triage_level, topIcd, d.lang || 'ru');
   const badge = $('triageBadge');
   badge.textContent = d.triage_level;
   badge.className = 'px-3 py-1 rounded-full font-bold text-white ' + (LV_COLOR[d.triage_level] || 'bg-slate-600');
