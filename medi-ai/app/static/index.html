@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MediAI — первичный клинический триаж</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/static/tailwind.css" />
   <style>
     .zone { cursor: pointer; transition: fill .15s ease, opacity .15s ease; }
     .zone:hover { opacity: .75; }
@@ -282,6 +282,24 @@
 const $ = (id) => document.getElementById(id);
 const state = { zone: 'живот', tags: new Set(), questions: [], answers: {}, qIndex: 0, photoIds: [] };
 
+// ---------- TASK-012 XSS helpers: server data NEVER goes through innerHTML ----------
+function makeEl(tag, className, text) {
+  const e = document.createElement(tag);
+  if (className) e.className = className;
+  if (text !== undefined && text !== null) e.textContent = String(text);
+  return e;
+}
+function clearEl(el) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+  return el;
+}
+function isSafeHttpUrl(u) {
+  try {
+    const p = new URL(String(u), location.origin);
+    return p.protocol === 'http:' || p.protocol === 'https:';
+  } catch (err) { return false; }
+}
+
 // ---------- Фото для врача (TASK-008: конверт, не автодиагноз; ids уходят с final-запросом) ----------
 async function uploadPhoto() {
   const inp = $('photoInput'), hint = $('photoHint');
@@ -419,17 +437,21 @@ async function loadConditions() {
   try {
     const r = await fetch('/api/conditions');
     const data = await r.json();
-    grid.innerHTML = '';
+    clearEl(grid);
     for (const [cat, items] of Object.entries(data.categories)) {
       const col = document.createElement('div');
-      col.innerHTML = `<h3 class="font-semibold capitalize mb-2 text-blue-800">${cat}</h3>`;
+      // TASK-012 XSS: category name is server data -> textContent only.
+      col.appendChild(makeEl('h3', 'font-semibold capitalize mb-2 text-blue-800', cat));
       const ul = document.createElement('ul');
       ul.className = 'flex flex-col gap-1.5 text-sm';
       for (const c of items) {
         const li = document.createElement('li');
-        li.innerHTML = `<span class="font-medium">${c.name}</span>
-          <span class="ml-1 px-1.5 py-0.5 rounded bg-slate-100 text-xs font-mono">${c.icd10}</span>
-          <div class="text-xs text-slate-500">${c.urgency_hint || ''}</div>`;
+        // TASK-012 XSS: name/icd10/urgency_hint are server data -> textContent only.
+        li.appendChild(makeEl('span', 'font-medium', c.name));
+        const code = makeEl('span', 'ml-1 px-1.5 py-0.5 rounded bg-slate-100 text-xs font-mono', c.icd10);
+        li.appendChild(document.createTextNode(' '));
+        li.appendChild(code);
+        li.appendChild(makeEl('div', 'text-xs text-slate-500', c.urgency_hint || ''));
         ul.appendChild(li);
       }
       col.appendChild(ul);
@@ -437,7 +459,8 @@ async function loadConditions() {
     }
     grid.dataset.loaded = '1';
   } catch (err) {
-    grid.innerHTML = '<p class="text-sm text-red-600">Не удалось загрузить каталог. Проверьте, что backend запущен.</p>';
+    clearEl(grid);
+    grid.appendChild(makeEl('p', 'text-sm text-red-600', 'Не удалось загрузить каталог. Проверьте, что backend запущен.'));
   }
 }
 
@@ -532,15 +555,17 @@ if ($('consentCheck')) $('consentCheck').addEventListener('change', updateFinalB
 // ---------- Триаж: 3 вопроса по одному (без пачки) ----------
 function renderOneQuestion() {
   const box = $('questions');
-  box.innerHTML = '';
+  clearEl(box);
   const q = state.questions[state.qIndex];
   if (!q) { updateFinalBtn(); return; }
   const idx = state.qIndex;
   const card = document.createElement('div');
   card.className = 'border rounded-xl p-3 bg-slate-50';
-  card.innerHTML = `<p class="text-xs text-slate-500 mb-1">Вопрос ${idx + 1} из ${state.questions.length}</p>
-    <p class="text-sm font-medium mb-1">${q.text}</p>
-    <p class="text-xs text-slate-500 mb-2">${q.reason || ''}</p>`;
+  // TASK-012 XSS: question text/reason/options are server data -> textContent only.
+  // Counter line is local ints (safe static skeleton pattern kept as elements).
+  card.appendChild(makeEl('p', 'text-xs text-slate-500 mb-1', 'Вопрос ' + (idx + 1) + ' из ' + state.questions.length));
+  card.appendChild(makeEl('p', 'text-sm font-medium mb-1', q.text));
+  card.appendChild(makeEl('p', 'text-xs text-slate-500 mb-2', q.reason || ''));
   const row = document.createElement('div');
   row.className = 'flex flex-wrap gap-2';
   (q.options || ['Да', 'Нет', 'Не уверен(а)']).forEach(opt => {
@@ -622,42 +647,86 @@ function renderResult(d) {
   badge.textContent = d.triage_level;
   badge.className = 'px-3 py-1 rounded-full font-bold text-white ' + (LV_COLOR[d.triage_level] || 'bg-slate-600');
   $('riskScore').textContent = d.risk_score + ' (эвристический балл, не вероятность диагноза)';
-  $('riskMarker').style.left = `calc(${Math.min(100, Math.max(0, d.risk_score))}% - 3px)`;
+  const riskNum = Math.min(100, Math.max(0, Number(d.risk_score) || 0));
+  $('riskMarker').style.left = 'calc(' + riskNum + '% - 3px)';
   $('bmiVal').textContent = d.bmi;
   $('bmiCat').textContent = d.bmi_category;
   const eb = $('emergencyBanner');
   if (d.emergency_call) { eb.classList.remove('hidden'); eb.textContent = 'Требуется срочная помощь: при ухудшении вызывайте 103/112. ' + (d.triage_level === 'RED' ? 'Не садитесь за руль, обеспечьте покой.' : 'Обратитесь к врачу в ближайшие часы.'); }
   else eb.classList.add('hidden');
-  const conds = $('conds'); conds.innerHTML = '';
+  const conds = $('conds'); clearEl(conds);
   d.probable_conditions.forEach(c => {
     const el = document.createElement('div');
     el.className = 'border rounded-xl p-2.5 bg-slate-50';
-    el.innerHTML = `<div class="flex justify-between gap-2"><b>${c.name}</b><span class="font-mono text-xs bg-white border rounded px-1.5 py-0.5">${c.icd10}</span></div>
-      <div class="h-2 rounded bg-slate-200 mt-1.5"><div class="h-2 rounded bg-blue-600" style="width:${c.probability}%"></div></div>
-      <div class="text-xs text-slate-600 mt-1">вероятность: ${bandLabel(c.probability)} (возможная причина, не диагноз) · ${c.reason || ''}</div>`;
+    // TASK-012 XSS: name/icd10/reason/probability are server data -> DOM only.
+    const head = document.createElement('div');
+    head.className = 'flex justify-between gap-2';
+    head.appendChild(makeEl('b', null, c.name));
+    head.appendChild(makeEl('span', 'font-mono text-xs bg-white border rounded px-1.5 py-0.5', c.icd10));
+    el.appendChild(head);
+    const barWrap = document.createElement('div');
+    barWrap.className = 'h-2 rounded bg-slate-200 mt-1.5';
+    const bar = document.createElement('div');
+    bar.className = 'h-2 rounded bg-blue-600';
+    const pct = Math.min(100, Math.max(0, Number(c.probability) || 0));
+    bar.style.width = pct + '%';
+    barWrap.appendChild(bar);
+    el.appendChild(barWrap);
+    el.appendChild(makeEl('div', 'text-xs text-slate-600 mt-1',
+      'вероятность: ' + bandLabel(c.probability) + ' (возможная причина, не диагноз) · ' + (c.reason || '')));
     conds.appendChild(el);
   });
-  $('diet').innerHTML =
-    `<p class="font-semibold ${d.diet.allowed ? 'text-emerald-700' : 'text-red-700'}">${d.diet.regime || ''}</p>
-     <p class="mt-1 text-slate-600">${d.diet.reason || ''}</p>` +
-    (d.diet.warning ? `<p class="mt-1 font-semibold text-red-700">${d.diet.warning}</p>` : '') +
-    (d.diet.recommended?.length ? `<p class="mt-2 font-medium">Рекомендуется:</p><ul class="list-disc ml-5">${d.diet.recommended.map(x => `<li>${x}</li>`).join('')}</ul>` : '') +
-    (d.diet.forbidden?.length ? `<p class="mt-2 font-medium">Исключить:</p><ul class="list-disc ml-5">${d.diet.forbidden.map(x => `<li>${x}</li>`).join('')}</ul>` : '') +
-    (d.diet.menu_example?.length ? `<p class="mt-2 font-medium">Пример меню:</p><ul class="list-disc ml-5">${d.diet.menu_example.map(x => `<li>${x}</li>`).join('')}</ul>` : '');
-  $('actions').innerHTML = d.actions.map(a => `<li>${a}</li>`).join('');
+  // TASK-012 XSS: diet/actions/forbidden/evidence/breakdown are server data -> DOM only.
+  const dietBox = $('diet'); clearEl(dietBox);
+  const regime = makeEl('p', 'font-semibold ' + (d.diet.allowed ? 'text-emerald-700' : 'text-red-700'), d.diet.regime || '');
+  dietBox.appendChild(regime);
+  dietBox.appendChild(makeEl('p', 'mt-1 text-slate-600', d.diet.reason || ''));
+  if (d.diet.warning) dietBox.appendChild(makeEl('p', 'mt-1 font-semibold text-red-700', d.diet.warning));
+  const dietLists = [
+    ['Рекомендуется:', d.diet.recommended],
+    ['Исключить:', d.diet.forbidden],
+    ['Пример меню:', d.diet.menu_example],
+  ];
+  for (const [title, items] of dietLists) {
+    if (items && items.length) {
+      dietBox.appendChild(makeEl('p', 'mt-2 font-medium', title));
+      const ul = makeEl('ul', 'list-disc ml-5');
+      items.forEach(x => ul.appendChild(makeEl('li', null, x)));
+      dietBox.appendChild(ul);
+    }
+  }
+  const actsBox = $('actions'); clearEl(actsBox);
+  d.actions.forEach(a => actsBox.appendChild(makeEl('li', null, a)));
   $('seeDoctor').textContent = d.see_doctor;
-  $('forbidden').innerHTML = d.forbidden_actions.map(a => `<li>${a}</li>`).join('');
-  $('evList').innerHTML = d.evidence_sources.map(e =>
-    `<a class="text-blue-700 underline" target="_blank" rel="noopener" href="${e.url}">${e.title}</a><span class="text-xs text-slate-500"> [${e.type}]</span>`
-  ).join('<br/>');
+  const forbBox = $('forbidden'); clearEl(forbBox);
+  d.forbidden_actions.forEach(a => forbBox.appendChild(makeEl('li', null, a)));
+  const evBox = $('evList'); clearEl(evBox);
+  d.evidence_sources.forEach((e, i) => {
+    const a = document.createElement('a');
+    a.className = 'text-blue-700 underline';
+    a.textContent = e.title;
+    // TASK-012 XSS: href is server data -> allow http(s) only, else drop link target.
+    if (isSafeHttpUrl(e.url)) a.href = e.url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    evBox.appendChild(a);
+    evBox.appendChild(makeEl('span', 'text-xs text-slate-500', ' [' + e.type + ']'));
+    if (i < d.evidence_sources.length - 1) evBox.appendChild(document.createElement('br'));
+  });
   $('rulesVer').textContent = d.rules_version || '—';
-  $('breakdown').innerHTML = (d.score_breakdown || []).map(b => `<li>${b.reason} — +${b.points}</li>`).join('') || '<li class="text-slate-500">Дополнительных баллов нет — базовый уровень.</li>';
+  const bdBox = $('breakdown'); clearEl(bdBox);
+  if (d.score_breakdown && d.score_breakdown.length) {
+    d.score_breakdown.forEach(b => bdBox.appendChild(makeEl('li', null, b.reason + ' — +' + b.points)));
+  } else {
+    bdBox.appendChild(makeEl('li', 'text-slate-500', 'Дополнительных баллов нет — базовый уровень.'));
+  }
 }
 
 // ---------- Спорт ----------
 $('sportBtn').onclick = async () => {
   const out = $('sportOut');
   out.classList.remove('hidden');
+  // Static skeleton (no server data) may stay as literal markup.
   out.innerHTML = '<p class="text-slate-500 loader-dots">Расчёт <span></span><span></span><span></span></p>';
   const body = {
     age: +$('age').value || 30, sex: $('sex').value,
@@ -668,20 +737,35 @@ $('sportBtn').onclick = async () => {
     const r = await fetch('/api/sport/plan', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
-    out.innerHTML =
-      `<div class="grid sm:grid-cols-4 gap-2 mb-2">
-        <div class="border rounded-xl p-2">ИМТ<br/><b>${d.bmi}</b> <span class="text-xs">(${d.bmi_category})</span></div>
-        <div class="border rounded-xl p-2">BMR<br/><b>${d.bmr_kcal}</b> ккал</div>
-        <div class="border rounded-xl p-2">TDEE<br/><b>${d.tdee_kcal}</b> ккал</div>
-        <div class="border rounded-xl p-2">Цель<br/><b>${d.target_kcal}</b> ккал</div>
-      </div>
-      <p><b>Темп:</b> ${d.weekly_tempo_kg}</p>
-      <p class="text-slate-600">${d.timeline_text}</p>
-      <p class="font-medium mt-2">Тренировки:</p><ul class="list-disc ml-5">${d.training_plan.map(x => `<li>${x}</li>`).join('')}</ul>
-      <p class="font-medium mt-2">Питание:</p><ul class="list-disc ml-5">${d.nutrition_hint.map(x => `<li>${x}</li>`).join('')}</ul>` +
-      (d.contraindications.length ? `<p class="font-medium mt-2 text-red-700">Противопоказания:</p><ul class="list-disc ml-5 text-red-900">${d.contraindications.map(x => `<li>${x}</li>`).join('')}</ul>` : '') +
-      (d.warnings.length ? `<p class="font-medium mt-2">Предупреждения:</p><ul class="list-disc ml-5 text-amber-900">${d.warnings.map(x => `<li>${x}</li>`).join('')}</ul>` : '');
-  } catch (err) { out.innerHTML = '<p class="text-red-600">Ошибка расчёта: ' + err.message + '</p>'; }
+    // TASK-012 XSS: all sport fields are server data -> DOM only (no innerHTML).
+    clearEl(out);
+    const grid = makeEl('div', 'grid sm:grid-cols-4 gap-2 mb-2');
+    const stat = (label, val, extra) => {
+      const cell = makeEl('div', 'border rounded-xl p-2', label);
+      cell.appendChild(document.createElement('br'));
+      cell.appendChild(makeEl('b', null, val));
+      if (extra) cell.appendChild(makeEl('span', 'text-xs', ' (' + extra + ')'));
+      return cell;
+    };
+    grid.appendChild(stat('ИМТ', d.bmi, d.bmi_category));
+    grid.appendChild(stat('BMR', d.bmr_kcal + ' ккал'));
+    grid.appendChild(stat('TDEE', d.tdee_kcal + ' ккал'));
+    grid.appendChild(stat('Цель', d.target_kcal + ' ккал'));
+    out.appendChild(grid);
+    const tempo = makeEl('p', null, 'Темп: ' + d.weekly_tempo_kg);
+    out.appendChild(tempo);
+    out.appendChild(makeEl('p', 'text-slate-600', d.timeline_text));
+    const listBlock = (title, items, cls) => {
+      out.appendChild(makeEl('p', 'font-medium mt-2', title));
+      const ul = makeEl('ul', 'list-disc ml-5' + (cls ? ' ' + cls : ''));
+      items.forEach(x => ul.appendChild(makeEl('li', null, x)));
+      out.appendChild(ul);
+    };
+    listBlock('Тренировки:', d.training_plan || []);
+    listBlock('Питание:', d.nutrition_hint || []);
+    if (d.contraindications && d.contraindications.length) listBlock('Противопоказания:', d.contraindications, 'text-red-900');
+    if (d.warnings && d.warnings.length) listBlock('Предупреждения:', d.warnings, 'text-amber-900');
+  } catch (err) { clearEl(out); out.appendChild(makeEl('p', 'text-red-600', 'Ошибка расчёта: ' + err.message)); }
 };
 </script>
 </body>

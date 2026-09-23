@@ -1,0 +1,28 @@
+# MediAI docker context (TASK-012): keep the image lean.
+# Uploaded patient photos must never bake into the image.
+app/uploads/
+uploads/
+*.log
+
+# Tests + snapshots (goldens/freeze) are CI-only, not runtime.
+tests/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+htmlcov/
+.coverage*
+
+# Dev VCS + docs (not needed at runtime).
+.git/
+.github/
+CHANGELOG.md
+CONTRIBUTING.md
+_PRIVATE_PLAN_DO_NOT_COMMIT.md
+*DO_NOT_COMMIT*
+.env
+.venv/
+venv/

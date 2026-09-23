@@ -74,8 +74,10 @@ def test_upload_valid_image_ok(clean_uploads):
     uuid.UUID(body["photo_id"])  # valid UUID
     assert body["quality"] == "ok"
     assert body["hint"]
-    stored = list(UPLOAD_DIR.glob(f"{body['photo_id']}.*"))
+    # TASK-012: image file + sidecar JSON share the UUID stem.
+    stored = [p for p in UPLOAD_DIR.glob(f"{body['photo_id']}.*") if p.suffix != ".json"]
     assert len(stored) == 1  # UUID filename under medi-ai/uploads/
+    assert (UPLOAD_DIR / f"{body['photo_id']}.json").is_file()
 
 
 def test_upload_dark_image(clean_uploads):
