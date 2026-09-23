@@ -91,10 +91,12 @@ def test_bleed_outside_abdomen_no_food():
     assert res["diet"].allowed is False
 
 
-# 3. normalize_zone('throat') → 'general' (no dedicated throat zone).
+# 3. normalize_zone('throat') → 'head' (TASK-003 contract; was 'general' in TASK-002).
 def test_normalize_zone_throat():
-    assert normalize_zone("throat") == "general"
-    assert normalize_zone("THROAT") == "general"
+    assert normalize_zone("throat") == "head"
+    assert normalize_zone("THROAT") == "head"
+    assert normalize_zone("горло") == "head"
+    assert normalize_zone("шея") == "head"
 
 
 # 4. thresholds triage_engine.py:291-298

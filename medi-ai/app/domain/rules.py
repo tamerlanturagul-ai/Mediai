@@ -1,0 +1,288 @@
+"""Domain rules: language, zones, BMI, keyword scoring, surgery/diet contexts.
+
+Extracted 1:1 from app/triage_engine.py (TASK-003 split).
+Intentional contract changes vs TASK-002 baseline:
+- normalize_zone: throat/горло (+шея, already) -> head (was general).
+- _kw_pattern default: prefix-tolerant ``\\b<kw>\\w*\\b`` (was exact
+  ``\\b<kw>\\b``) to keep inflection sensitivity (грудиной, диабетом,
+  подвздошная, migrating) while preserving word-start safety
+  (breakfast != FAST, 139/9 != 39). Special cases (39, 38.5,
+  температура 39/40, fast) stay exact.
+- Answer mapping: normalize_answer() maps RU/EN/KZ free text to
+  canonical yes/no/unsure (see schemas.TriageAnswer).
+"""
+from __future__ import annotations
+
+import re
+from typing import List, Tuple
+
+
+# ---------------------------------------------------------------------------
+# Language
+# ---------------------------------------------------------------------------
+
+def _norm_lang(lang: str | None) -> str:
+    l = (lang or "ru").lower()
+    return l if l in ("ru", "en", "kz") else "ru"
+
+
+# ---------------------------------------------------------------------------
+# BMI
+# ---------------------------------------------------------------------------
+
+def calc_bmi(weight_kg: float, height_cm: float) -> float:
+    h_m = max(height_cm / 100.0, 0.5)
+    return round(weight_kg / (h_m ** 2), 1)
+
+
+_BMI_I18N = {
+    "ru": ["Дефицит массы тела", "Норма", "Избыточная масса тела",
+           "Ожирение I степени", "Ожирение II степени", "Ожирение III степени"],
+    "en": ["Underweight", "Normal", "Overweight",
+           "Obesity class I", "Obesity class II", "Obesity class III"],
+    "kz": ["Салмақ тапшылығы", "Қалыпты", "Артық салмақ",
+           "I дәрежелі семіздік", "II дәрежелі семіздік", "III дәрежелі семіздік"],
+}
+
+_BMI_SHORT_I18N = {
+    "ru": ["Дефицит", "Норма", "Избыток", "Ожирение"],
+    "en": ["Low", "Normal", "High", "Obese"],
+    "kz": ["Тапшылық", "Қалыпты", "Артық", "Семіздік"],
+}
+
+
+def bmi_category(bmi: float, lang: str = "ru") -> str:
+    l = _norm_lang(lang)
+    full = _BMI_I18N[l]
+    if bmi < 18.5:
+        return full[0]
+    if bmi < 25:
+        return full[1]
+    if bmi < 30:
+        return full[2]
+    if bmi < 35:
+        return full[3]
+    if bmi < 40:
+        return full[4]
+    return full[5]
+
+
+def bmi_category_short(bmi: float, lang: str = "ru") -> str:
+    l = _norm_lang(lang)
+    s = _BMI_SHORT_I18N[l]
+    if bmi < 18.5:
+        return s[0]
+    if bmi < 25:
+        return s[1]
+    if bmi < 30:
+        return s[2]
+    return s[3]
+
+
+# ---------------------------------------------------------------------------
+# Zones
+# ---------------------------------------------------------------------------
+
+def normalize_zone(body_zone: str) -> str:
+    z = (body_zone or "").strip().lower()
+    chest_keys = ["chest", "груд", "сердц", "thorax", "кардио"]
+    abdomen_keys = ["abdomen", "живот", "абдомин", "брюш", "подвздош", "эпигастр", "жкт", "кишеч", "желуд"]
+    # TASK-003 contract: throat/горло/шея -> head (no dedicated throat zone).
+    head_keys = ["head", "голов", "невро", "мозг", "шея", "neuro", "мигрень",
+                 "throat", "горло", "горл", "тамак", "тамақ"]
+    skin_keys = ["skin", "кожа", "дерм", "сыпь", "прыщ", "зуд", "дермат"]
+    limb_keys = ["limb", "нога", "рука", "конечн", "спина", "поясниц", "сустав", "колен"]
+    for key in chest_keys:
+        if key in z:
+            return "chest"
+    for key in abdomen_keys:
+        if key in z:
+            return "abdomen"
+    for key in head_keys:
+        if key in z:
+            return "head"
+    for key in skin_keys:
+        if key in z:
+            return "skin"
+    for key in limb_keys:
+        if key in z:
+            return "limb"
+    return "general"
+
+
+def triage_level_from_score(score: float) -> str:
+    if score <= 25:
+        return "GREEN"
+    if score <= 60:
+        return "YELLOW"
+    if score <= 85:
+        return "ORANGE"
+    return "RED"
+
+
+# ---------------------------------------------------------------------------
+# Answers: RU/EN/KZ -> canonical yes/no/unsure
+# ---------------------------------------------------------------------------
+
+def normalize_answer(answer: str) -> str:
+    """Map localized answer text to canonical 'yes' | 'no' | 'unsure'.
+
+    Raises ValueError for unmapped/ambiguous free text (contract: Literal only).
+    """
+    a = (answer or "").strip().lower()
+    if a in ("yes", "no", "unsure"):
+        return a
+    # unsure first (contains spaces, must precede yes/no prefix checks)
+    if any(k in a for k in ("не уверен", "не знаю", "not sure", "сенімді емес", "unsure")):
+        return "unsure"
+    if a in ("да", "yes", "есть", "имеется", "наблюдается", "иә", "бар", "болады"):
+        return "yes"
+    if a.startswith("да") or a.startswith("yes") or a.startswith("иә"):
+        if "нет" in a or re.search(r"\bno\b", a):
+            raise ValueError(f"Неоднозначный ответ '{answer}': ожидается yes/no/unsure")
+        return "yes"
+    if a in ("нет", "no", "жоқ", "жок", "нету"):
+        return "no"
+    if a.startswith("нет") or a.startswith("no") or a.startswith("жоқ") or a.startswith("жок"):
+        if re.search(r"\byes\b", a) or "да" in a:
+            raise ValueError(f"Неоднозначный ответ '{answer}': ожидается yes/no/unsure")
+        return "no"
+    raise ValueError(f"Неизвестный ответ '{answer}': ожидается yes/no/unsure (или Да/Нет/Не уверен(а), Yes/No/Not sure, Иә/Жоқ/Сенімді емеспін)")
+
+
+def _answer_is_positive(answer: str) -> bool:
+    # Canonical fast path + legacy fallback (1:1 with pre-split logic).
+    try:
+        return normalize_answer(answer) == "yes"
+    except ValueError:
+        pass
+    a = (answer or "").strip().lower()
+    if a in ("да", "yes", "есть", "имеется", "наблюдается", "иә", "бар", "болады"):
+        return True
+    if a.startswith("да") or a.startswith("yes") or a.startswith("иә"):
+        return True
+    return False
+
+
+def _answer_is_unsure(answer: str) -> bool:
+    try:
+        return normalize_answer(answer) == "unsure"
+    except ValueError:
+        pass
+    a = (answer or "").lower()
+    return any(k in a for k in ["не уверен", "не знаю", "not sure", "сенімді емес"])
+
+
+_RED_PHRASES = ["да", "yes", "есть", "сильная", "резко", "внезапно", "не могу", "невозможно"]
+
+
+# ---------------------------------------------------------------------------
+# Keyword scoring (word-boundary, Unicode-aware)
+# ---------------------------------------------------------------------------
+
+def _normalize_med_text(s: str) -> str:
+    """Normalized lowercase text for word-boundary matching (Unicode-aware)."""
+    return (s or "").lower().replace("ё", "е")
+
+
+def _kw_pattern(kw: str) -> str:
+    k = _normalize_med_text(kw)
+    if k == "39":
+        return r"\b39\b"
+    if k == "38.5":
+        return r"\b38[.,]5\b"
+    if k == "температура 39":
+        return r"\bтемпература\s*:?\s*39\b"
+    if k == "температура 40":
+        return r"\bтемпература\s*:?\s*40\b"
+    if k == "fast":
+        return r"\bfast\b"
+    if k == "faint":
+        # keep sensitivity to faint/fainting/faainted with word-start boundary
+        return r"\bfaint\w*\b"
+    if k == "fever":
+        return r"\bfever\w*\b"
+    if k == "анафилакси":
+        # stem of анафилаксия/анафилактический — allow suffix, require word start
+        return r"\bанафилакси\w*\b"
+    # TASK-003: prefix-tolerant for inflections (грудиной, диабетом,
+    # подвздошная, migrating) with word-start safety (breakfast != fast).
+    return r"\b" + re.escape(k) + r"\w*\b"
+
+
+def _kw_hit(kw: str, text_norm: str) -> bool:
+    try:
+        return re.search(_kw_pattern(kw), text_norm, flags=re.UNICODE) is not None
+    except re.error:
+        return _normalize_med_text(kw) in text_norm
+
+
+def _keyword_score(t: str) -> Tuple[float, List[str]]:
+    """Эвристический скоринг по свободному тексту. Возвращает (баллы, флаги)."""
+    score = 0.0
+    flags: List[str] = []
+    tn = _normalize_med_text(t)
+    red_groups = [
+        (["боль за грудиной", "давит в груди", "жжет в груди", "отдаёт в руку", "холодный пот", "удушье", "нехватка воздуха",
+          "chest pain", "pressing chest", "cold sweat", "shortness of breath", "төс артындағы ауырсыну", "суық тер", "ентігу"], 38, "кардиальный красный флаг"),
+        (["перекос лица", "онемела рука", "нарушение речи", "инсульт", "fast", "face droop", "arm weakness", "stroke", "бет қисаюы"], 42, "неврологический красный флаг (FAST)"),
+        (["рвота кофейной", "черный стул", "мелена", "кровь в стуле", "кровотечение", "coffee-ground", "black stool", "bleeding", "қара нәжіс"], 40, "кровотечение ЖКТ"),
+        (["острая боль справа внизу", "миграция боли", "твёрдый живот", "твердый живот", "доскообразный", "нет стула и газов", "задержка стула",
+          "right lower", "migrating pain", "rigid abdomen", "оң жақ", "қатайған іш"], 36, "острая хирургическая патология"),
+        (["анафилакси", "отёк губ", "отек губ", "отёк языка", "задыхаюсь", "anaphylaxis", "lip swelling", "анафилаксия"], 45, "анафилаксия"),
+        (["температура 39", "температура 40", "38.5", "39", "озноб", "спутанность", "потеря сознания", "обморок", "судороги",
+          "fever", "chills", "confusion", "faint", "қызба", "қалтырау"], 25, "системная тяжесть"),
+        (["тошнота", "рвота", "лихорадка", "температура", "nausea", "vomiting", "жүрек айну", "құсу"], 10, "системные симптомы"),
+    ]
+    for keywords, pts, flag in red_groups:
+        if any(_kw_hit(k, tn) for k in keywords):
+            score += pts
+            flags.append(flag)
+    # Возраст и хронические маркеры
+    if any(_kw_hit(k, tn) for k in ["диабет", "давление", "гипертония", "астма", "ибс", "инфаркт в прошлом", "diabetes", "hypertension", "asthma", "қант диабеті"]):
+        score += 6
+        flags.append("отягощённый анамнез")
+    return score, flags
+
+
+# ---------------------------------------------------------------------------
+# Surgery / GI contexts (migrated to _kw_hit, TASK-003)
+# ---------------------------------------------------------------------------
+
+_GI_BLEED_SIGNALS = [
+    "мелена", "черный стул", "рвота кофейной", "кровотечение",
+    "bleeding", "black stool", "coffee-ground", "қара нәжіс",
+    "кровь в стуле",
+]
+
+_ABDOMEN_SURGICAL_SIGNALS = [
+    "аппендицит", "справа внизу", "подвздош", "твёрдый живот",
+    "твердый живот", "нет стула", "непроходимость", "доскообразный",
+]
+
+
+def _surgery_suspected(zone: str, t: str, probable) -> bool:
+    tn = _normalize_med_text(t)
+    if zone == "abdomen" and any(_kw_hit(k, tn) for k in _ABDOMEN_SURGICAL_SIGNALS):
+        return True
+    icds = " ".join(p.icd10 for p in probable)
+    if "K35" in icds or "K56" in icds:
+        return True
+    # GI-bleed in ANY zone → strict fasting (zone-independent).
+    if any(_kw_hit(k, tn) for k in _GI_BLEED_SIGNALS):
+        return True
+    return False
+
+
+def _gi_diabetes_obesity_context(t: str, probable, bmi: float) -> bool:
+    tn = _normalize_med_text(t)
+    icds = " ".join(p.icd10 for p in probable)
+    gi_markers = ["K21", "K25", "K29", "K59", "E11", "E66", "K80"]
+    if any(m in icds for m in gi_markers):
+        return True
+    if bmi >= 30:
+        return True
+    # TASK-003: migrated from `k in t` substring to _kw_hit.
+    if any(_kw_hit(k, tn) for k in ["изжога", "гастрит", "язва", "диабет", "жажда", "ожирение", "понос", "запор", "вздутие"]):
+        return True
+    return False

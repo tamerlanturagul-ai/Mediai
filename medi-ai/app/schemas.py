@@ -1,14 +1,63 @@
 """Pydantic-модели валидации MediAI."""
 from __future__ import annotations
 
+import re
 from typing import Dict, List, Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 Sex = Literal["male", "female", "other"]
 TriageLevel = Literal["GREEN", "YELLOW", "ORANGE", "RED"]
 SportGoal = Literal["lose", "gain", "maintain", "endurance", "strength"]
 ActivityLevel = Literal["sedentary", "light", "moderate", "active", "athlete"]
+Lang = Literal["ru", "en", "kz"]
+AnswerLiteral = Literal["yes", "no", "unsure"]
+
+
+def map_localized_answer(v: str) -> str:
+    """Map RU/EN/KZ free-text answer to canonical yes/no/unsure.
+
+    Accepted (case-insensitive):
+    - yes: да, yes, иә, есть/имеется/наблюдается, бар/болады (+ "да, ..." / "yes, ..." continuations)
+    - no: нет, no, жоқ/жок
+    - unsure: не уверен(а)/не знаю, not sure, сенімді емес(пін), unsure
+    Ambiguous ("да нет") and other free text raise ValueError (contract: Literal only).
+    """
+    a = (v or "").strip().lower()
+    if a in ("yes", "no", "unsure"):
+        return a
+    if any(k in a for k in ("не уверен", "не знаю", "not sure", "сенімді емес", "unsure")):
+        return "unsure"
+    if a in ("да", "yes", "есть", "имеется", "наблюдается", "иә", "бар", "болады"):
+        return "yes"
+    # "да, ..." / "yes, ..." continuations are yes, but "да нет" (both markers) is ambiguous -> reject.
+    if a.startswith("да") or a.startswith("yes") or a.startswith("иә"):
+        if "нет" in a or re.search(r"\bno\b", a):
+            raise ValueError(
+                f"Неоднозначный ответ '{v}': ожидается yes/no/unsure "
+                "(или Да/Нет/Не уверен(а), Yes/No/Not sure, Иә/Жоқ/Сенімді емеспін)"
+            )
+        return "yes"
+    if a in ("нет", "no", "жоқ", "жок", "нету"):
+        return "no"
+    if a.startswith("нет") or a.startswith("no") or a.startswith("жоқ") or a.startswith("жок"):
+        # "no ..." with embedded "yes"/"да" is ambiguous
+        if re.search(r"\byes\b", a) or "да" in a:
+            raise ValueError(
+                f"Неоднозначный ответ '{v}': ожидается yes/no/unsure "
+                "(или Да/Нет/Не уверен(а), Yes/No/Not sure, Иә/Жоқ/Сенімді емеспін)"
+            )
+        return "no"
+    raise ValueError(
+        f"Неизвестный ответ '{v}': ожидается yes/no/unsure "
+        "(или Да/Нет/Не уверен(а), Yes/No/Not sure, Иә/Жоқ/Сенімді емеспін)"
+    )
+
+
+def map_lang(v: str | None) -> str:
+    """Single lang coercion: unknown/empty -> 'ru' (fallback, TASK-003 contract)."""
+    l = (v or "ru").strip().lower()
+    return l if l in ("ru", "en", "kz") else "ru"
 
 
 class HealthProfile(BaseModel):
@@ -27,6 +76,12 @@ class TriageInitialRequest(BaseModel):
     symptoms_text: str = Field(..., min_length=3, description="Свободный текст симптомов")
     tags: List[str] = Field(default_factory=list)
     request_diet: bool = False
+    lang: Lang = Field(default="ru", description="Язык ответа: ru/en/kz")
+
+    @field_validator("lang", mode="before")
+    @classmethod
+    def _coerce_lang(cls, v):  # type: ignore[no-untyped-def]
+        return map_lang(v if isinstance(v, str) else "ru")
 
 
 class TriageQuestion(BaseModel):
@@ -38,11 +93,19 @@ class TriageQuestion(BaseModel):
 
 class TriageInitialResponse(BaseModel):
     questions: List[TriageQuestion] = Field(..., min_length=3, max_length=3)
+    lang: Lang = Field(default="ru")
 
 
 class TriageAnswer(BaseModel):
     question_id: str
-    answer: str
+    answer: AnswerLiteral
+
+    @field_validator("answer", mode="before")
+    @classmethod
+    def _coerce_answer(cls, v):  # type: ignore[no-untyped-def]
+        if isinstance(v, str):
+            return map_localized_answer(v)
+        return v
 
 
 class TriageFinalRequest(BaseModel):
@@ -55,6 +118,12 @@ class TriageFinalRequest(BaseModel):
     tags: List[str] = Field(default_factory=list)
     request_diet: bool = False
     answers: List[TriageAnswer] = Field(..., min_length=3, max_length=3)
+    lang: Lang = Field(default="ru")
+
+    @field_validator("lang", mode="before")
+    @classmethod
+    def _coerce_lang(cls, v):  # type: ignore[no-untyped-def]
+        return map_lang(v if isinstance(v, str) else "ru")
 
 
 class ProbableCondition(BaseModel):
@@ -92,6 +161,7 @@ class TriageFinalResponse(BaseModel):
     emergency_call: bool
     forbidden_actions: List[str]
     evidence_sources: List[EvidenceSource]
+    lang: Lang = Field(default="ru")
 
 
 class ConditionItem(BaseModel):

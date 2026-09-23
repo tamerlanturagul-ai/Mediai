@@ -13,12 +13,18 @@ MediAI анализирует симптомы своими словами, зо
 ```text
 medi-ai/
 ├── app/
-│   ├── main.py          # FastAPI-сервер, роуты, CORS, статика
-│   ├── schemas.py       # Pydantic-модели валидации
-│   ├── triage_engine.py # Клиническая логика триажа и вопросов
-│   ├── sport_engine.py  # Расчёт спорта: темп, сроки, противопоказания
+│   ├── main.py              # FastAPI-сервер, роуты, CORS, статика
+│   ├── schemas.py           # Pydantic-модели валидации
+│   ├── triage_engine.py     # Shim ре-экспорта (TASK-003); логика в domain//services
+│   ├── domain/
+│   │   ├── catalog.py       # RU/EN/KZ каталоги заболеваний
+│   │   ├── questions.py     # Банки 6 зон × 3 языка
+│   │   └── rules.py         # _normalize_med_text, _kw_pattern/_kw_hit/_keyword_score, _surgery_suspected, пороги
+│   ├── services/
+│   │   └── triage_service.py# evaluate_final, builders
+│   ├── sport_engine.py      # Расчёт спорта: темп, сроки, противопоказания
 │   └── static/
-│       └── index.html   # Главная страница
+│       └── index.html       # Главная страница
 └── requirements.txt     # fastapi, uvicorn, pydantic, httpx
 ```
 
@@ -38,6 +44,26 @@ medi-ai/
 - Диета назначается строго при патологиях ЖКТ/диабете/ожирении или по прямому запросу.
 - При подозрении на хирургию/аппендицит — жёсткий запрет еды и воды до осмотра хирурга.
 - Доказательная база: клинические протоколы, PubMed ID, ВОЗ.
+
+## Контракты TASK-003
+
+- `TriageAnswer.answer`: канон `Literal["yes","no","unsure"]`. Локализованные ответы маппятся
+  в сервисе/схеме: Да/Нет/Не уверен(а), Yes/No/Not sure, Иә/Жоқ/Сенімді емеспін.
+  Свободный текст (`maybe`, `да нет`, `123`) → 422 ValidationError.
+- `normalize_zone`: `throat` / `горло` / `шея` → `head` (выделенной throat-зоны нет;
+  вопросы берутся из head-банка `neuro_*`). До TASK-003 `throat` → `general`.
+- `lang`: единый хелпер `main._resolve_lang` (+ `schemas.map_lang`) во всех триаж-роутах
+  (`/api/conditions`, `/api/triage/initial`, `/api/triage/final`).
+  Контракт: неизвестный/пустой `lang` → fallback `"ru"` (не 422, backward-compatible).
+- CORS: whitelist из env `CORS_ORIGINS` (comma-separated, напр.
+  `CORS_ORIGINS="https://app.example.com,https://example.com"`).
+  Дефолт без env: `["http://localhost:8000","http://127.0.0.1:8000"]`.
+  Комбинация `allow_origins=["*"] + allow_credentials=True` запрещена:
+  при `"*"` credentials автоматически `False`.
+- Скоринг: все `k in t` мигрированы на `_kw_hit` (word-boundary, Unicode, `ё→е`);
+  `_kw_pattern` по умолчанию префикс-толерантен (`\b<kw>\w*\b`) для флексий
+  (грудиной, диабетом, подвздошная, migrating) с сохранением защит
+  TASK-002 (`breakfast != FAST`, `139/9 != 39`, `температура 39` только как число).
 
 ## Быстрый запуск
 
