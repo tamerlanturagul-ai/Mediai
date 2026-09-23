@@ -1,6 +1,7 @@
 """Алгоритм реалистичного расчёта спорта MediAI: темп, сроки, противопоказания."""
 from __future__ import annotations
 
+from .i18n import resolve_lang
 from .schemas import SportPlanRequest
 from .triage_engine import bmi_category, calc_bmi
 
@@ -33,8 +34,8 @@ def _bmr_mifflin(sex: str, weight_kg: float, height_cm: float, age: int) -> floa
 
 
 def _lang_of(req: SportPlanRequest) -> str:
-    lang = getattr(req, "lang", "ru") or "ru"
-    return lang if lang in ("ru", "en", "kz") else "ru"
+    """Deprecated alias: extracts req.lang via app.i18n.resolve_lang (kept for backward compat)."""
+    return resolve_lang(getattr(req, "lang", "ru"))
 
 
 def parq_positive(req: SportPlanRequest) -> bool:

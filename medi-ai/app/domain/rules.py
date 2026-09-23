@@ -16,6 +16,9 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from ..i18n import normalize_answer as _canonical_normalize_answer
+from ..i18n import resolve_lang
+
 if TYPE_CHECKING:  # schemas import is typing-only: keeps domain runtime-decoupled
     from ..schemas import ProbableCondition
 
@@ -28,8 +31,8 @@ RULES_VERSION = "1.1"
 # ---------------------------------------------------------------------------
 
 def _norm_lang(lang: str | None) -> str:
-    l = (lang or "ru").lower()
-    return l if l in ("ru", "en", "kz") else "ru"
+    """Deprecated alias of app.i18n.resolve_lang (kept for backward compat)."""
+    return resolve_lang(lang)
 
 
 # ---------------------------------------------------------------------------
@@ -58,8 +61,8 @@ _BMI_SHORT_I18N = {
 
 
 def bmi_category(bmi: float, lang: str = "ru") -> str:
-    l = _norm_lang(lang)
-    full = _BMI_I18N[l]
+    lang = resolve_lang(lang)
+    full = _BMI_I18N[lang]
     if bmi < 18.5:
         return full[0]
     if bmi < 25:
@@ -74,8 +77,8 @@ def bmi_category(bmi: float, lang: str = "ru") -> str:
 
 
 def bmi_category_short(bmi: float, lang: str = "ru") -> str:
-    l = _norm_lang(lang)
-    s = _BMI_SHORT_I18N[l]
+    lang = resolve_lang(lang)
+    s = _BMI_SHORT_I18N[lang]
     if bmi < 18.5:
         return s[0]
     if bmi < 25:
@@ -89,30 +92,23 @@ def bmi_category_short(bmi: float, lang: str = "ru") -> str:
 # Zones
 # ---------------------------------------------------------------------------
 
+# Zone keyword table: (zone, substring keys), checked in order; fallback "general".
+_ZONE_TABLE: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("chest", ("chest", "груд", "сердц", "thorax", "кардио")),
+    ("abdomen", ("abdomen", "живот", "абдомин", "брюш", "подвздош", "эпигастр", "жкт", "кишеч", "желуд")),
+    # TASK-003 contract: throat/горло/шея -> head (no dedicated throat zone).
+    ("head", ("head", "голов", "невро", "мозг", "шея", "neuro", "мигрень",
+              "throat", "горло", "горл", "тамак", "тамақ")),
+    ("skin", ("skin", "кожа", "дерм", "сыпь", "прыщ", "зуд", "дермат")),
+    ("limb", ("limb", "нога", "рука", "конечн", "спина", "поясниц", "сустав", "колен")),
+)
+
+
 def normalize_zone(body_zone: str) -> str:
     z = (body_zone or "").strip().lower()
-    chest_keys = ["chest", "груд", "сердц", "thorax", "кардио"]
-    abdomen_keys = ["abdomen", "живот", "абдомин", "брюш", "подвздош", "эпигастр", "жкт", "кишеч", "желуд"]
-    # TASK-003 contract: throat/горло/шея -> head (no dedicated throat zone).
-    head_keys = ["head", "голов", "невро", "мозг", "шея", "neuro", "мигрень",
-                 "throat", "горло", "горл", "тамак", "тамақ"]
-    skin_keys = ["skin", "кожа", "дерм", "сыпь", "прыщ", "зуд", "дермат"]
-    limb_keys = ["limb", "нога", "рука", "конечн", "спина", "поясниц", "сустав", "колен"]
-    for key in chest_keys:
-        if key in z:
-            return "chest"
-    for key in abdomen_keys:
-        if key in z:
-            return "abdomen"
-    for key in head_keys:
-        if key in z:
-            return "head"
-    for key in skin_keys:
-        if key in z:
-            return "skin"
-    for key in limb_keys:
-        if key in z:
-            return "limb"
+    for zone, keys in _ZONE_TABLE:
+        if any(key in z for key in keys):
+            return zone
     return "general"
 
 
@@ -133,27 +129,10 @@ def triage_level_from_score(score: float) -> str:
 def normalize_answer(answer: str) -> str:
     """Map localized answer text to canonical 'yes' | 'no' | 'unsure'.
 
+    Thin delegate of app.i18n.normalize_answer (kept here for backward compat).
     Raises ValueError for unmapped/ambiguous free text (contract: Literal only).
     """
-    a = (answer or "").strip().lower()
-    if a in ("yes", "no", "unsure"):
-        return a
-    # unsure first (contains spaces, must precede yes/no prefix checks)
-    if any(k in a for k in ("не уверен", "не знаю", "not sure", "сенімді емес", "unsure")):
-        return "unsure"
-    if a in ("да", "yes", "есть", "имеется", "наблюдается", "иә", "бар", "болады"):
-        return "yes"
-    if a.startswith(("да", "yes", "иә")):
-        if "нет" in a or re.search(r"\bno\b", a):
-            raise ValueError(f"Неоднозначный ответ '{answer}': ожидается yes/no/unsure")
-        return "yes"
-    if a in ("нет", "no", "жоқ", "жок", "нету"):
-        return "no"
-    if a.startswith(("нет", "no", "жоқ", "жок")):
-        if re.search(r"\byes\b", a) or "да" in a:
-            raise ValueError(f"Неоднозначный ответ '{answer}': ожидается yes/no/unsure")
-        return "no"
-    raise ValueError(f"Неизвестный ответ '{answer}': ожидается yes/no/unsure (или Да/Нет/Не уверен(а), Yes/No/Not sure, Иә/Жоқ/Сенімді емеспін)")
+    return _canonical_normalize_answer(answer)
 
 
 def _answer_is_positive(answer: str) -> bool:
@@ -295,8 +274,8 @@ def likelihood_band(probability: float) -> str:
 
 def likelihood_label(probability: float, lang: str = "ru") -> str:
     """Localized band label (ru/en/kz), fallback to ru."""
-    l = _norm_lang(lang)
-    return LIKELIHOOD_I18N[l][likelihood_band(probability)]
+    lang = resolve_lang(lang)
+    return LIKELIHOOD_I18N[lang][likelihood_band(probability)]
 
 
 # ---------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 """Disease catalogs RU/EN/KZ (extracted from triage_engine, TASK-003)."""
 from __future__ import annotations
 
+from ..i18n import resolve_lang
 from ..schemas import ConditionItem
-from .rules import _norm_lang
 
 CONDITIONS_CATALOG_RU: dict[str, list[ConditionItem]] = {
     "кардиология": [
@@ -177,10 +177,13 @@ CONDITIONS_CATALOG_KZ: dict[str, list[ConditionItem]] = {
 
 CONDITIONS_CATALOG = CONDITIONS_CATALOG_RU
 
+_CATALOG_BY_LANG: dict[str, dict[str, list[ConditionItem]]] = {
+    "ru": CONDITIONS_CATALOG_RU,
+    "en": CONDITIONS_CATALOG_EN,
+    "kz": CONDITIONS_CATALOG_KZ,
+}
+
+
 def get_conditions_catalog(lang: str = "ru") -> dict[str, list[ConditionItem]]:
-    l = _norm_lang(lang)
-    if l == "en":
-        return CONDITIONS_CATALOG_EN
-    if l == "kz":
-        return CONDITIONS_CATALOG_KZ
-    return CONDITIONS_CATALOG_RU
+    lang = resolve_lang(lang)
+    return _CATALOG_BY_LANG[lang]
