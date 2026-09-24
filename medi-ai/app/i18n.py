@@ -462,9 +462,9 @@ MESSAGES: dict[str, dict[str, str]] = {
         "kz": "ДДҰ — алғашқы көмек ұсынымдары",
     },
     "ev_heart": {
-        "ru": "PubMed — HEART score для боли в груди (ID: 32979527)",
-        "en": "PubMed — HEART score for chest pain (ID: 32979527)",
-        "kz": "PubMed — кеуде ауырсынуына HEART шкаласы (ID: 32979527)",
+        "ru": "PubMed — HEART score для боли в груди (ID: 23465250)",
+        "en": "PubMed — HEART score for chest pain (ID: 23465250)",
+        "kz": "PubMed — кеуде ауырсынуына HEART шкаласы (ID: 23465250)",
     },
 }
 

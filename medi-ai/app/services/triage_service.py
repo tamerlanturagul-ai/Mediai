@@ -273,18 +273,18 @@ def _build_evidence(zone: str, probable: list[ProbableCondition], lang: str = "r
         EvidenceSource(title=who_title,
                        url="https://www.who.int/publications", type="WHO"),
         EvidenceSource(title=heart_title,
-                       url="https://pubmed.ncbi.nlm.nih.gov/32979527/", type="PubMed"),
+                       url="https://pubmed.ncbi.nlm.nih.gov/23465250/", type="PubMed"),
     ]
     zone_evidence = {
         "chest": EvidenceSource(
             title="ESC Guidelines — острый коронарный синдром без подъёма ST",
             url="https://www.escardio.org/Guidelines", type="Protocol"),
         "abdomen": EvidenceSource(
-            title="WSES Guidelines — острый аппендицит (PMID: 34605800)",
-            url="https://pubmed.ncbi.nlm.nih.gov/34605800/", type="Protocol"),
+            title="WSES Guidelines — острый аппендицит (PMID: 32295644)",
+            url="https://pubmed.ncbi.nlm.nih.gov/32295644/", type="Protocol"),
         "head": EvidenceSource(
-            title="AHA/ASA Guidelines — раннее ведение острого ишемического инсульта",
-            url="https://www.ahajournals.org/doi/10.1161/STR.0000000000000211", type="Protocol"),
+            title="AHA/ASA Guidelines — раннее ведение острого ишемического инсульта (PMID: 31662037)",
+            url="https://pubmed.ncbi.nlm.nih.gov/31662037/", type="Protocol"),
         "skin": EvidenceSource(
             title="IDSA Guidelines — инфекции кожи и мягких тканей (PMID: 24947530)",
             url="https://pubmed.ncbi.nlm.nih.gov/24947530/", type="Protocol"),
@@ -292,8 +292,8 @@ def _build_evidence(zone: str, probable: list[ProbableCondition], lang: str = "r
             title="NICE NG89 — венозная тромбоэмболия: диагностика и ведение",
             url="https://www.nice.org.uk/guidance/ng89", type="Protocol"),
         "general": EvidenceSource(
-            title="PubMed — qSOFA/сепсис-скрининг (ID: 27014596)",
-            url="https://pubmed.ncbi.nlm.nih.gov/27014596/", type="PubMed"),
+            title="PubMed — qSOFA/сепсис-скрининг (ID: 26903335)",
+            url="https://pubmed.ncbi.nlm.nih.gov/26903335/", type="PubMed"),
     }
     specific = zone_evidence.get(zone)
     out = [base[0]]
