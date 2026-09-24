@@ -12,7 +12,7 @@
 pip install -r medi-ai/requirements.txt
 pip install ruff mypy pytest pytest-cov   # quality gates (CI-only, not in requirements)
 
-python -m pytest -q                                   # full suite (280 tests)
+python -m pytest -q                                   # full suite (335 tests)
 python -m ruff check medi-ai                          # blocking, 0 warnings
 python -m mypy medi-ai/app/domain medi-ai/app/services  # strict on clinical core
 python -m pytest --cov=medi-ai/app --cov-report=term-missing --cov-fail-under=85
